@@ -1,0 +1,186 @@
+:root {
+  /* Core Colors */
+  --bg-primary: #F9FAFB;
+  --bg-secondary: #ffffff;
+  --bg-tertiary: #f1f5f9;
+  
+  /* Status/Brand Colors */
+  --status-safe: #1A4731; /* Home hero - deep green */
+  --status-safe-tint: #D1FAE5; /* Light green tint */
+  
+  --status-danger: #DC2626; /* Red */
+  --bg-danger-tint: #FEF2F2;
+  
+  /* New Screen Accents */
+  --accent-pulse: #1A4731; /* Forest Green */
+  --accent-coach: #B45309; /* Deep Amber */
+  --accent-engine: #4338CA; /* Deep Indigo */
+  
+  --accent-glow: rgba(79, 70, 229, 0.15);
+  
+  /* Shared Neutrals */
+  --text-primary: #111827;
+  --text-secondary: #6B7280;
+  --text-tertiary: #9CA3AF;
+  --text-body: #374151;
+  
+  --border-light: #E5E7EB;
+
+  /* Layout */
+  --radius-sm: 8px;
+  --radius-md: 12px; /* Inner elements */
+  --radius-lg: 20px; /* Outer cards */
+  --radius-xl: 32px;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: 'Inter', sans-serif;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+}
+
+/* Glassmorphism utility */
+.glass {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 8px 24px rgba(0,0,0,0.04);
+}
+
+.glass-card {
+  background: #ffffff;
+  border: 1px solid var(--border-light);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 8px 24px rgba(0,0,0,0.04);
+  border-radius: var(--radius-lg);
+  padding: 24px 20px;
+}
+
+/* Gradients */
+.text-gradient {
+  background: linear-gradient(135deg, #9333ea 0%, #4f46e5 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.safe-gradient {
+  background: linear-gradient(135deg, #059669 0%, #10b981 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Animations */
+@keyframes pulse-glow-indigo {
+  0% { box-shadow: 0 0 0 0 rgba(67, 56, 202, 0.3); }
+  70% { box-shadow: 0 0 0 20px rgba(67, 56, 202, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(67, 56, 202, 0); }
+}
+
+.animate-pulse-indigo {
+  animation: pulse-glow-indigo 3s infinite;
+}
+
+@keyframes ticker-scroll-vertical {
+  0% { transform: translateY(0); }
+  100% { transform: translateY(-50%); }
+}
+
+.ticker-vertical {
+  animation: ticker-scroll-vertical 20s linear infinite;
+}
+
+@keyframes ticker-scroll-horizontal {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+.ticker-horizontal {
+  animation: ticker-scroll-horizontal 15s linear infinite;
+  display: flex;
+  white-space: nowrap;
+}
+
+/* App Container (Mobile Mockup) */
+#root {
+  max-width: 480px;
+  margin: 0 auto;
+  min-height: 100vh;
+  position: relative;
+  background-color: var(--bg-primary);
+  box-shadow: 0 0 50px rgba(0, 0, 0, 0.1);
+  display: flex;
+  flex-direction: column;
+}
+
+/* Utility Classes */
+.flex-center {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.flex-between {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.flex-column {
+  display: flex;
+  flex-direction: column;
+}
+
+.gap-sm { gap: 8px; }
+.gap-md { gap: 16px; }
+.gap-lg { gap: 24px; }
+
+/* Custom Scrollbar for hidden horizontal scrolls */
+::-webkit-scrollbar {
+  display: none;
+}
+
+/* Typography Classes */
+.display-font {
+  font-family: 'DM Sans', sans-serif;
+  font-weight: 800;
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+.section-header {
+  font-family: 'Inter', sans-serif;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  font-size: 0.75rem; /* 12px */
+  margin-bottom: 16px;
+}
+
+.micro-label {
+  font-family: 'Inter', sans-serif;
+  font-weight: 500;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.body-text {
+  font-family: 'Inter', sans-serif;
+  font-weight: 400;
+  color: var(--text-body);
+}

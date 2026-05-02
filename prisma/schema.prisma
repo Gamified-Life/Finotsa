@@ -1,0 +1,81 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model User {
+  id          Int           @id @default(autoincrement())
+  name        String
+  healthScore Int           @default(0)
+  transactions Transaction[]
+  insights    Insight[]
+  engineRules EngineRule[]
+  portfolio   Portfolio?
+}
+
+model Category {
+  id           Int           @id @default(autoincrement())
+  name         String
+  emoji        String
+  warningFlag  Boolean       @default(false)
+  type         String        @default("EXPENSE") // INCOME or EXPENSE
+  transactions Transaction[]
+}
+
+model Transaction {
+  id         Int      @id @default(autoincrement())
+  amount     Float
+  shopName   String
+  date       DateTime @default(now())
+  user       User     @relation(fields: [userId], references: [id])
+  userId     Int
+  category   Category @relation(fields: [categoryId], references: [id])
+  categoryId Int
+}
+
+model Insight {
+  id               Int      @id @default(autoincrement())
+  title            String
+  description      String
+  suggestedAction  String
+  type             String   // SAVING or TAX
+  effort           String?
+  effortBg         String?
+  effortColor      String?
+  icon             String?
+  user             User     @relation(fields: [userId], references: [id])
+  userId           Int
+}
+
+model Benchmark {
+  id       Int     @id @default(autoincrement())
+  label    String
+  current  Float
+  past     Float
+  better   Boolean
+}
+
+model EngineRule {
+  id     Int     @id @default(autoincrement())
+  name   String
+  desc   String
+  saved  String
+  active Boolean @default(true)
+  icon   String
+  userId Int
+  user   User    @relation(fields: [userId], references: [id])
+}
+
+model Portfolio {
+  id            Int    @id @default(autoincrement())
+  totalInvested Float
+  returns       Float
+  returnsPct    Float
+  userId        Int    @unique
+  user          User   @relation(fields: [userId], references: [id])
+}
