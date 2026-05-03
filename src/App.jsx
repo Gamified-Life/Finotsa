@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { supabase } from './supabaseClient';
 import { 
   Bell, Activity, Play, Cpu, ChevronRight, ShieldAlert, TrendingDown,
   TrendingUp, ArrowDownRight, Briefcase, Zap, Target, Shield,
@@ -50,16 +51,26 @@ const PulseTab = ({ userName }) => {
   const [showBreakdown, setShowBreakdown] = useState(false);
   const [expandedCategory, setExpandedCategory] = useState(null);
   const [detailedCategories, setDetailedCategories] = useState([]);
+  const [budget, setBudget] = useState(null);
   const GREEN = '#1A4731';
   const GREEN_TINT = '#D1FAE5';
   const AMBER = '#D97706';
   const AMBER_TINT = '#FFFBEB';
 
   useEffect(() => {
-    fetch('/api/pulse')
-      .then(res => res.json())
-      .then(data => setDetailedCategories(data.detailedCategories))
-      .catch(err => console.error("Error fetching pulse data:", err));
+    const fetchPulseData = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const headers = session?.user ? { 'x-user-id': session.user.id } : {};
+        const res = await fetch('/api/pulse', { headers });
+        const data = await res.json();
+        setDetailedCategories(data.detailedCategories);
+        setBudget(data.budget);
+      } catch (err) {
+        console.error("Error fetching pulse data:", err);
+      }
+    };
+    fetchPulseData();
   }, []);
 
   return (
@@ -82,9 +93,9 @@ const PulseTab = ({ userName }) => {
           <p style={{ fontSize: 12, fontWeight: 600, color: GREEN, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 8 }}>Safe to spend today</p>
           <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: 4 }}>
             <span style={{ fontSize: 14, fontWeight: 700, color: GREEN }}>₹</span>
-            <AnimatedNumber value={230} duration={900} style={{ fontSize: 64, fontWeight: 800, color: GREEN, letterSpacing: '-0.04em', lineHeight: 1 }} />
+            <AnimatedNumber value={budget ? budget.safeToday : 0} duration={900} style={{ fontSize: 64, fontWeight: 800, color: GREEN, letterSpacing: '-0.04em', lineHeight: 1 }} />
           </div>
-          <p style={{ fontSize: 13, color: `${GREEN}99`, marginTop: 8, fontWeight: 500 }}>₹14,200 available this month</p>
+          <p style={{ fontSize: 13, color: `${GREEN}99`, marginTop: 8, fontWeight: 500 }}>₹{budget ? budget.availableForMonth.toLocaleString('en-IN') : 0} available this month</p>
 
           {/* Spend velocity bar */}
           <div style={{ marginTop: 20, background: `${GREEN}20`, borderRadius: 8, height: 6, overflow: 'hidden' }}>
@@ -99,21 +110,21 @@ const PulseTab = ({ userName }) => {
         <button
           onClick={() => setShowBreakdown(!showBreakdown)}
           style={{ width: '100%', background: '#fff', border: '1px solid #E5E7EB', borderRadius: 16, padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
-          <span style={{ fontWeight: 700, fontSize: 14, color: '#111827' }}>Why exactly ₹230?</span>
+          <span style={{ fontWeight: 700, fontSize: 14, color: '#111827' }}>Why exactly ₹{budget ? budget.safeToday : 0}?</span>
           <ChevronRight size={16} color="#9CA3AF" style={{ transform: showBreakdown ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }} />
         </button>
 
-        {showBreakdown && (
+        {showBreakdown && budget && (
           <div style={{ background: '#fff', borderRadius: '0 0 16px 16px', border: '1px solid #E5E7EB', borderTop: 'none', padding: '0 20px 20px', animation: 'fadeDown 0.2s ease' }}>
             <div style={{ borderTop: '1px solid #F3F4F6', paddingTop: 16 }}>
               {/* Phase 1 */}
               <p style={{ fontSize: 10, fontWeight: 700, color: '#9CA3AF', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 10 }}>Step 1 — Monthly Available</p>
               {[
-                { label: 'Current Balance', value: '₹28,500', color: '#111827', indent: false },
-                { label: 'Fixed Expenses (Rent, EMI)', value: '− ₹5,000', color: '#DC2626', indent: true },
-                { label: 'Upcoming Subscriptions', value: '− ₹1,200', color: '#DC2626', indent: true },
-                { label: 'Emergency Buffer', value: '− ₹2,000', color: '#D97706', indent: true },
-                { label: 'Goal: Goa Trip', value: '− ₹6,100', color: '#D97706', indent: true },
+                { label: 'Monthly Income', value: `₹${budget.monthlyIncome.toLocaleString('en-IN')}`, color: '#111827', indent: false },
+                { label: 'Fixed Expenses (Rent, EMI)', value: `− ₹${budget.fixedExpenses.toLocaleString('en-IN')}`, color: '#DC2626', indent: true },
+                { label: 'Subscriptions', value: `− ₹${budget.subsSpend.toLocaleString('en-IN')}`, color: '#DC2626', indent: true },
+                { label: 'Emergency Buffer', value: `− ₹${budget.emergencyBuffer.toLocaleString('en-IN')}`, color: '#D97706', indent: true },
+                ...(budget.goals || []).map(g => ({ label: `Goal: ${g.name}`, value: `− ₹${g.target.toLocaleString('en-IN')}`, color: '#D97706', indent: true }))
               ].map((row, i) => (
                 <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 0', borderLeft: row.indent ? `3px solid ${row.color}22` : 'none', paddingLeft: row.indent ? 12 : 0 }}>
                   <span style={{ fontSize: 13, color: row.indent ? '#6B7280' : '#111827', fontWeight: row.indent ? 400 : 600 }}>{row.label}</span>
@@ -122,14 +133,14 @@ const PulseTab = ({ userName }) => {
               ))}
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0', borderTop: '1px dashed #E5E7EB', marginTop: 4 }}>
                 <span style={{ fontSize: 13, fontWeight: 700, color: '#111827' }}>Available for Month</span>
-                <span style={{ fontSize: 13, fontWeight: 700, color: GREEN, fontVariantNumeric: 'tabular-nums' }}>₹14,200</span>
+                <span style={{ fontSize: 13, fontWeight: 700, color: GREEN, fontVariantNumeric: 'tabular-nums' }}>₹{budget.availableForMonth.toLocaleString('en-IN')}</span>
               </div>
               {/* Phase 2 */}
               <p style={{ fontSize: 10, fontWeight: 700, color: '#9CA3AF', letterSpacing: '0.1em', textTransform: 'uppercase', marginTop: 12, marginBottom: 10 }}>Step 2 — Daily Limit</p>
               {[
-                { label: 'Days to Salary', value: '12 remaining', color: '#111827', indent: false },
-                { label: 'Base Daily Limit', value: '₹1,183', color: '#6B7280', indent: true },
-                { label: 'Weekend AI Adjustment', value: '− ₹953', color: '#DC2626', indent: true },
+                { label: 'Days in Month Remaining', value: `${budget.daysRemaining} remaining`, color: '#111827', indent: false },
+                { label: 'Base Daily Limit', value: `₹${budget.baseDailyLimit.toLocaleString('en-IN')}`, color: '#6B7280', indent: true },
+                { label: 'Weekend AI Adjustment', value: `− ₹${Math.abs(budget.aiAdjustment).toLocaleString('en-IN')}`, color: '#DC2626', indent: true },
               ].map((row, i) => (
                 <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 0', borderLeft: row.indent ? '3px solid #E5E7EB' : 'none', paddingLeft: row.indent ? 12 : 0 }}>
                   <span style={{ fontSize: 13, color: row.indent ? '#6B7280' : '#111827', fontWeight: row.indent ? 400 : 600 }}>{row.label}</span>
@@ -138,7 +149,7 @@ const PulseTab = ({ userName }) => {
               ))}
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 16px', background: GREEN_TINT, borderRadius: 10, marginTop: 8 }}>
                 <span style={{ fontSize: 14, fontWeight: 800, color: GREEN }}>Safe Today</span>
-                <span style={{ fontSize: 14, fontWeight: 800, color: GREEN, fontVariantNumeric: 'tabular-nums' }}>₹230</span>
+                <span style={{ fontSize: 14, fontWeight: 800, color: GREEN, fontVariantNumeric: 'tabular-nums' }}>₹{budget.safeToday.toLocaleString('en-IN')}</span>
               </div>
             </div>
           </div>
@@ -259,10 +270,18 @@ const CoachTab = ({ userName }) => {
   const [completedOpps, setCompletedOpps] = useState({});
 
   useEffect(() => {
-    fetch('/api/coach')
-      .then(res => res.json())
-      .then(data => setCoachData(data))
-      .catch(err => console.error("Error fetching coach data:", err));
+    const fetchCoachData = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const headers = session?.user ? { 'x-user-id': session.user.id } : {};
+        const res = await fetch('/api/coach', { headers });
+        const data = await res.json();
+        setCoachData(data);
+      } catch (err) {
+        console.error("Error fetching coach data:", err);
+      }
+    };
+    fetchCoachData();
   }, []);
 
   const handleAct = (index) => {
@@ -411,17 +430,59 @@ const EngineTab = ({ userName }) => {
   const [syncResult, setSyncResult] = useState(null);
   const [simAmount, setSimAmount] = useState('');
   const [simShop, setSimShop] = useState('');
+  const [newIncome, setNewIncome] = useState('');
+  const [newRent, setNewRent] = useState('');
+  const [isUpdating, setIsUpdating] = useState(false);
 
-  const fetchEngineData = () => {
-    fetch('/api/engine')
-      .then(res => res.json())
-      .then(data => setEngineData(data))
-      .catch(err => console.error("Error fetching engine data:", err));
+  const fetchEngineData = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const headers = session?.user ? { 'x-user-id': session.user.id } : {};
+      const res = await fetch('/api/engine', { headers });
+      const data = await res.json();
+      setEngineData(data);
+    } catch (err) {
+      console.error("Error fetching engine data:", err);
+    }
   };
 
   useEffect(() => {
     fetchEngineData();
+    
+    // Check if we just returned from AA consent flow
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('consent_status') === 'success') {
+      verifyConsent();
+    }
   }, []);
+
+  const verifyConsent = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const headers = session?.user ? { 'x-user-id': session.user.id } : {};
+      await fetch('/api/aa/verify', { method: 'POST', headers });
+      
+      // Clean up URL
+      window.history.replaceState({}, document.title, window.location.pathname);
+      fetchEngineData();
+    } catch(e) {
+      console.error(e);
+    }
+  };
+
+  const handleLinkBank = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const headers = session?.user ? { 'x-user-id': session.user.id } : {};
+      const res = await fetch('/api/aa/consent', { method: 'POST', headers });
+      const data = await res.json();
+      if (data.redirectUrl) {
+        window.location.href = data.redirectUrl;
+      }
+    } catch(e) {
+      console.error(e);
+    }
+  };
 
   if (!engineData) return <div style={{ padding: 24 }}>Loading Engine...</div>;
 
@@ -429,10 +490,14 @@ const EngineTab = ({ userName }) => {
     if (!simAmount || !simShop) return;
     setIsSyncing(true);
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const userId = session?.user?.id || 1;
+      const headers = { 'Content-Type': 'application/json', ...(session?.user ? { 'x-user-id': session.user.id } : {}) };
+      
       const res = await fetch('/api/webhook/transaction', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: 1, amount: Number(simAmount), shopName: simShop })
+        headers,
+        body: JSON.stringify({ userId, amount: Number(simAmount), shopName: simShop })
       });
       const data = await res.json();
       setSyncResult(data.transaction);
@@ -452,12 +517,34 @@ const EngineTab = ({ userName }) => {
   const handleSimulateSweep = async () => {
     setIsSweeping(true);
     try {
-      await fetch('/api/cron/engine-sweep', { method: 'POST' });
+      const { data: { session } } = await supabase.auth.getSession();
+      const headers = session?.user ? { 'x-user-id': session.user.id } : {};
+      await fetch('/api/cron/engine-sweep', { method: 'POST', headers });
       fetchEngineData(); // Refresh portfolio and ticker
     } catch (e) {
       console.error("Sweep failed", e);
     }
     setIsSweeping(false);
+  };
+
+  const handleUpdateProfile = async () => {
+    if (!newIncome || !newRent) return;
+    setIsUpdating(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const headers = { 'Content-Type': 'application/json', ...(session?.user ? { 'x-user-id': session.user.id } : {}) };
+      await fetch('/api/user/settings', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ monthlyIncome: newIncome, fixedExpenses: newRent })
+      });
+      setNewIncome('');
+      setNewRent('');
+      alert("Profile updated! Check the Pulse tab for new budget.");
+    } catch (e) {
+      console.error("Update failed", e);
+    }
+    setIsUpdating(false);
   };
 
   const rules = engineData.rules.map(r => ({
@@ -565,51 +652,107 @@ const EngineTab = ({ userName }) => {
         </div>
       </div>
 
-      {/* Account Aggregator Sandbox */}
+      {/* Connected Bank Accounts (Setu AA) */}
       <div style={{ padding: '0 24px 120px' }}>
-        <p style={{ fontSize: 11, fontWeight: 700, color: '#9CA3AF', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 14 }}>Developer Sandbox: Simulate Bank Sync</p>
+        <p style={{ fontSize: 11, fontWeight: 700, color: '#9CA3AF', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 14 }}>Connected Bank Accounts</p>
         <div style={{ background: '#111827', border: '1px solid #374151', borderRadius: 20, padding: '20px', color: '#fff', boxShadow: '0 8px 16px rgba(0,0,0,0.1)' }}>
-          <p style={{ fontSize: 13, color: '#9CA3AF', marginBottom: 16, lineHeight: 1.5 }}>
-            Paste a raw UPI transaction below. Our backend will use the <strong style={{color:'#fff'}}>MerchantMap</strong> or LLM fallback to categorize it automatically.
-          </p>
-          
-          <div style={{ display: 'flex', gap: 12, marginBottom: 12 }}>
-            <input 
-              type="number" 
-              placeholder="Amount (₹)" 
-              value={simAmount}
-              onChange={e => setSimAmount(e.target.value)}
-              style={{ width: '35%', padding: '12px 14px', background: '#1F2937', border: '1px solid #374151', borderRadius: 12, color: '#fff', fontSize: 14, outline: 'none' }}
-            />
-            <input 
-              type="text" 
-              placeholder="e.g. UPI/1234/ZOMATO" 
-              value={simShop}
-              onChange={e => setSimShop(e.target.value)}
-              style={{ flex: 1, padding: '12px 14px', background: '#1F2937', border: '1px solid #374151', borderRadius: 12, color: '#fff', fontSize: 14, outline: 'none' }}
-            />
-          </div>
-          
-          <button 
-            onClick={handleSimulateSync}
-            disabled={isSyncing || !simAmount || !simShop}
-            style={{ width: '100%', padding: '14px', background: INDIGO, color: '#fff', border: 'none', borderRadius: 12, fontSize: 14, fontWeight: 700, cursor: isSyncing ? 'not-allowed' : 'pointer', opacity: (!simAmount || !simShop) ? 0.5 : 1 }}
-          >
-            {isSyncing ? 'Syncing with Bank API...' : 'Simulate Incoming Transaction'}
-          </button>
-
-          {syncResult && (
-            <div style={{ marginTop: 16, padding: '12px', background: 'rgba(16, 185, 129, 0.1)', border: '1px dashed #10B981', borderRadius: 12, animation: 'fadeDown 0.3s ease' }}>
-              <p style={{ fontSize: 12, color: '#10B981', fontWeight: 600, marginBottom: 4 }}>✓ Sync Successful & Categorized</p>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: 14 }}>{syncResult.shopName}</span>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <span style={{ fontSize: 16 }}>{syncResult.category?.emoji}</span>
-                  <span style={{ fontSize: 12, fontWeight: 700 }}>{syncResult.category?.name}</span>
+          {engineData.bankLinked ? (
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <div style={{ width: 40, height: 40, borderRadius: '50%', background: '#1F2937', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <Shield size={20} color="#10B981" />
+                  </div>
+                  <div>
+                    <p style={{ fontSize: 14, fontWeight: 700 }}>HDFC Bank</p>
+                    <p style={{ fontSize: 12, color: '#9CA3AF' }}>Linked via Setu AA</p>
+                  </div>
                 </div>
+                <span style={{ fontSize: 12, color: '#10B981', fontWeight: 600, background: 'rgba(16, 185, 129, 0.1)', padding: '4px 10px', borderRadius: 100 }}>Active</span>
               </div>
+              <button 
+                onClick={async () => {
+                  setIsSyncing(true);
+                  try {
+                    const { data: { session } } = await supabase.auth.getSession();
+                    const headers = session?.user ? { 'x-user-id': session.user.id } : {};
+                    const res = await fetch('/api/aa/sync', { method: 'POST', headers });
+                    const data = await res.json();
+                    if(data.success) {
+                       setSyncResult(data.transaction);
+                       fetchEngineData();
+                    }
+                  } catch(e) {}
+                  setIsSyncing(false);
+                  setTimeout(() => setSyncResult(null), 3000);
+                }}
+                disabled={isSyncing}
+                style={{ width: '100%', padding: '12px', background: '#374151', color: '#fff', border: 'none', borderRadius: 12, fontSize: 13, fontWeight: 600, cursor: isSyncing ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+              >
+                <Activity size={14} /> {isSyncing ? 'Syncing...' : 'Sync Latest Transactions'}
+              </button>
+              {syncResult && (
+                <div style={{ marginTop: 12, padding: '10px', background: 'rgba(16, 185, 129, 0.1)', border: '1px dashed #10B981', borderRadius: 12, animation: 'fadeDown 0.3s ease' }}>
+                  <p style={{ fontSize: 11, color: '#10B981', fontWeight: 600, marginBottom: 4 }}>✓ Found & Categorized</p>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: 13 }}>{syncResult.shopName}</span>
+                    <span style={{ fontSize: 12, fontWeight: 700 }}>₹{syncResult.amount}</span>
+                  </div>
+                </div>
+              )}
             </div>
+          ) : (
+            <>
+              <p style={{ fontSize: 13, color: '#9CA3AF', marginBottom: 16, lineHeight: 1.5 }}>
+                Link your bank account securely via the <strong style={{color:'#fff'}}>Account Aggregator</strong> framework to enable automated transaction tracking.
+              </p>
+              
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <button 
+                  onClick={() => alert("To link a real bank, please provide SETU_CLIENT_ID and SETU_CLIENT_SECRET in the .env file.")}
+                  style={{ width: '100%', padding: '14px', background: INDIGO, color: '#fff', border: 'none', borderRadius: 12, fontSize: 14, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
+                >
+                  <Shield size={16} /> Link Real Bank (Setu AA)
+                </button>
+                
+                <button 
+                  onClick={handleLinkBank}
+                  style={{ width: '100%', padding: '14px', background: 'transparent', color: '#10B981', border: '1px dashed #10B981', borderRadius: 12, fontSize: 14, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
+                >
+                  Explore with Demo Bank
+                </button>
+              </div>
+            </>
           )}
+
+          <div style={{ marginTop: 24, paddingTop: 20, borderTop: '1px solid #374151' }}>
+            <p style={{ fontSize: 13, color: '#9CA3AF', marginBottom: 12, lineHeight: 1.5 }}>
+              Update Financial Profile (Income & Fixed Expenses)
+            </p>
+            <div style={{ display: 'flex', gap: 12, marginBottom: 12 }}>
+              <input 
+                type="number" 
+                placeholder="Monthly Income (₹)" 
+                value={newIncome}
+                onChange={e => setNewIncome(e.target.value)}
+                style={{ flex: 1, padding: '12px 14px', background: '#1F2937', border: '1px solid #374151', borderRadius: 12, color: '#fff', fontSize: 14, outline: 'none' }}
+              />
+              <input 
+                type="number" 
+                placeholder="Fixed Expenses (₹)" 
+                value={newRent}
+                onChange={e => setNewRent(e.target.value)}
+                style={{ flex: 1, padding: '12px 14px', background: '#1F2937', border: '1px solid #374151', borderRadius: 12, color: '#fff', fontSize: 14, outline: 'none' }}
+              />
+            </div>
+            <button 
+              onClick={handleUpdateProfile}
+              disabled={isUpdating || !newIncome || !newRent}
+              style={{ width: '100%', padding: '14px', background: '#374151', color: '#fff', border: 'none', borderRadius: 12, fontSize: 14, fontWeight: 700, cursor: isUpdating ? 'not-allowed' : 'pointer', opacity: (!newIncome || !newRent) ? 0.5 : 1 }}
+            >
+              {isUpdating ? 'Updating...' : 'Update Profile'}
+            </button>
+          </div>
 
           <div style={{ marginTop: 24, paddingTop: 20, borderTop: '1px solid #374151' }}>
             <p style={{ fontSize: 13, color: '#9CA3AF', marginBottom: 12, lineHeight: 1.5 }}>
@@ -631,8 +774,37 @@ const EngineTab = ({ userName }) => {
 
 // ─── LOGIN SCREEN ─────────────────────────────────────────────────────────────
 const LoginScreen = ({ onLogin }) => {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [name, setName] = useState('');
+  const [isSignUp, setIsSignUp] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
   const GREEN = '#1A4731';
+
+  const handleAuth = async () => {
+    if (!email || !password || (isSignUp && !name)) return;
+    setLoading(true);
+    setError(null);
+    try {
+      if (isSignUp) {
+        const { data, error } = await supabase.auth.signUp({ 
+          email, 
+          password,
+          options: { data: { full_name: name } }
+        });
+        if (error) throw error;
+        if (data.user) onLogin(name || 'User');
+      } else {
+        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) throw error;
+        if (data.user) onLogin(data.user.user_metadata?.full_name || 'User');
+      }
+    } catch (e) {
+      setError(e.message);
+    }
+    setLoading(false);
+  };
 
   return (
     <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: '#FAFAFA', color: '#111827', padding: 24, animation: 'fadeUp 0.5s ease' }}>
@@ -643,21 +815,32 @@ const LoginScreen = ({ onLogin }) => {
       <p style={{ fontSize: 15, color: '#6B7280', marginBottom: 40, textAlign: 'center' }}>Your intelligent financial operating system.</p>
       
       <div style={{ width: '100%', maxWidth: 320 }}>
-        <p style={{ fontSize: 12, fontWeight: 700, color: '#9CA3AF', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 8 }}>What should we call you?</p>
+        {error && <p style={{ color: '#DC2626', fontSize: 13, marginBottom: 16, textAlign: 'center', background: '#FEF2F2', padding: 8, borderRadius: 8 }}>{error}</p>}
+        {isSignUp && (
+          <input 
+            type="text" value={name} onChange={e => setName(e.target.value)} placeholder="Full Name"
+            style={{ width: '100%', padding: '16px 20px', fontSize: 16, borderRadius: 16, border: '1px solid #E5E7EB', outline: 'none', marginBottom: 12, boxSizing: 'border-box' }}
+          />
+        )}
         <input 
-          type="text" 
-          value={name}
-          onChange={e => setName(e.target.value)}
-          placeholder="First Name"
-          style={{ width: '100%', padding: '16px 20px', fontSize: 18, fontWeight: 700, letterSpacing: '-0.02em', borderRadius: 16, border: '1px solid #E5E7EB', background: '#fff', color: '#111827', outline: 'none', marginBottom: 24, boxSizing: 'border-box', boxShadow: '0 2px 8px rgba(0,0,0,0.02)' }}
-          autoFocus
+          type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="Email address"
+          style={{ width: '100%', padding: '16px 20px', fontSize: 16, borderRadius: 16, border: '1px solid #E5E7EB', outline: 'none', marginBottom: 12, boxSizing: 'border-box' }}
+        />
+        <input 
+          type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Password"
+          style={{ width: '100%', padding: '16px 20px', fontSize: 16, borderRadius: 16, border: '1px solid #E5E7EB', outline: 'none', marginBottom: 24, boxSizing: 'border-box' }}
         />
         <button 
-          onClick={() => { if (name.trim()) onLogin(name.trim()); }}
-          disabled={!name.trim()}
-          style={{ width: '100%', padding: 16, borderRadius: 16, background: name.trim() ? GREEN : '#E5E7EB', color: name.trim() ? '#fff' : '#9CA3AF', border: 'none', fontSize: 16, fontWeight: 700, cursor: name.trim() ? 'pointer' : 'not-allowed', transition: 'all 0.3s', boxShadow: name.trim() ? '0 4px 12px rgba(26, 71, 49, 0.2)' : 'none' }}
+          onClick={handleAuth} disabled={loading || !email || !password}
+          style={{ width: '100%', padding: 16, borderRadius: 16, background: (email && password) ? GREEN : '#E5E7EB', color: (email && password) ? '#fff' : '#9CA3AF', border: 'none', fontSize: 16, fontWeight: 700, cursor: (email && password) ? 'pointer' : 'not-allowed' }}
         >
-          Continue to Dashboard
+          {loading ? 'Processing...' : (isSignUp ? 'Create Account' : 'Sign In')}
+        </button>
+        <button 
+          onClick={() => setIsSignUp(!isSignUp)}
+          style={{ width: '100%', marginTop: 16, background: 'none', border: 'none', color: '#6B7280', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}
+        >
+          {isSignUp ? 'Already have an account? Sign In' : 'Need an account? Sign Up'}
         </button>
       </div>
     </div>
@@ -669,6 +852,25 @@ export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userName, setUserName] = useState('');
   const [tab, setTab] = useState('home');
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        setIsLoggedIn(true);
+        setUserName(session.user.user_metadata?.full_name || 'User');
+      }
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) {
+        setIsLoggedIn(true);
+        setUserName(session.user.user_metadata?.full_name || 'User');
+      } else {
+        setIsLoggedIn(false);
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, []);
   
   const tabs = [
     { id: 'home', icon: Activity, label: 'Pulse', accent: '#1A4731' },

@@ -5,6 +5,8 @@ async function main() {
   console.log('Seeding database...');
 
   // Clear existing data to avoid conflicts
+  await prisma.goal.deleteMany({});
+  await prisma.sweepHistory.deleteMany({});
   await prisma.healthScoreHistory.deleteMany({});
   await prisma.merchantMap.deleteMany({});
   await prisma.transaction.deleteMany({});
@@ -20,7 +22,21 @@ async function main() {
     data: {
       name: 'Rahul',
       healthScore: 68,
+      monthlyIncome: 45000,
+      fixedExpenses: 6200,
+      emergencyBuffer: 2000,
     },
+  });
+
+  // Create Goals
+  await prisma.goal.create({
+    data: {
+      userId: user.id,
+      name: 'Goa Trip',
+      targetAmount: 20000,
+      currentAmount: 6100,
+      deadline: new Date('2026-12-01')
+    }
   });
 
   // Create Categories

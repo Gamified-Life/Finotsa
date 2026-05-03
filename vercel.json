@@ -4,5 +4,15 @@
       "source": "/api/(.*)",
       "destination": "/api/index.js"
     }
+  ],
+  "crons": [
+    {
+      "path": "/api/cron/health-score",
+      "schedule": "0 0 * * *"
+    },
+    {
+      "path": "/api/cron/engine-sweep",
+      "schedule": "15 0 * * *"
+    }
   ]
 }

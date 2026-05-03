@@ -9,15 +9,32 @@ datasource db {
 }
 
 model User {
-  id          Int           @id @default(autoincrement())
-  name        String
-  healthScore Int           @default(0)
-  transactions Transaction[]
-  insights    Insight[]
-  engineRules EngineRule[]
-  portfolio   Portfolio?
-  scoreHistory HealthScoreHistory[]
-  sweeps      SweepHistory[]
+  id              Int           @id @default(autoincrement())
+  authId          String?       @unique
+  name            String
+  healthScore     Int           @default(0)
+  monthlyIncome   Float         @default(45000)
+  fixedExpenses   Float         @default(6200)
+  emergencyBuffer Float         @default(2000)
+  bankLinked      Boolean       @default(false)
+  aaConsentId     String?
+  transactions    Transaction[]
+  insights        Insight[]
+  engineRules     EngineRule[]
+  portfolio       Portfolio?
+  scoreHistory    HealthScoreHistory[]
+  sweeps          SweepHistory[]
+  goals           Goal[]
+}
+
+model Goal {
+  id            Int       @id @default(autoincrement())
+  name          String
+  targetAmount  Float
+  currentAmount Float     @default(0)
+  deadline      DateTime?
+  userId        Int
+  user          User      @relation(fields: [userId], references: [id])
 }
 
 model Category {
