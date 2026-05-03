@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from './supabaseClient';
+import { motion, useScroll, useTransform } from 'framer-motion';
 import { 
   Bell, Activity, Play, Cpu, ChevronRight, ShieldAlert, TrendingDown,
   TrendingUp, ArrowDownRight, Briefcase, Zap, Target, Shield,
-  AlertTriangle, CheckCircle, Info
+  AlertTriangle, CheckCircle, Info, Camera
 } from 'lucide-react';
 
 // ─── Animated Counter ─────────────────────────────────────────────────────────
@@ -427,6 +428,7 @@ const EngineTab = ({ userName }) => {
   const [engineData, setEngineData] = useState(null);
   const [isSweeping, setIsSweeping] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   const [syncResult, setSyncResult] = useState(null);
   const [simAmount, setSimAmount] = useState('');
   const [simShop, setSimShop] = useState('');
@@ -482,6 +484,46 @@ const EngineTab = ({ userName }) => {
     } catch(e) {
       console.error(e);
     }
+  };
+
+  const handleFileUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    setIsUploading(true);
+    try {
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        const base64String = reader.result.split(',')[1];
+        
+        const { data: { session } } = await supabase.auth.getSession();
+        const headers = {
+          'Content-Type': 'application/json',
+          ...(session?.user ? { 'x-user-id': session.user.id } : {})
+        };
+
+        const res = await fetch('/api/upload-statement', {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({
+            imageBase64: base64String,
+            mimeType: file.type
+          })
+        });
+        const data = await res.json();
+        if (data.success) {
+          alert(`Success! Imported ${data.count} transactions from screenshot.`);
+          fetchEngineData();
+        } else {
+          alert('Failed to process screenshot.');
+        }
+      };
+      reader.readAsDataURL(file);
+    } catch (e) {
+      console.error(e);
+      alert('Error uploading screenshot');
+    }
+    setIsUploading(false);
   };
 
   if (!engineData) return <div style={{ padding: 24 }}>Loading Engine...</div>;
@@ -655,12 +697,12 @@ const EngineTab = ({ userName }) => {
       {/* Connected Bank Accounts (Setu AA) */}
       <div style={{ padding: '0 24px 120px' }}>
         <p style={{ fontSize: 11, fontWeight: 700, color: '#9CA3AF', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 14 }}>Connected Bank Accounts</p>
-        <div style={{ background: '#111827', border: '1px solid #374151', borderRadius: 20, padding: '20px', color: '#fff', boxShadow: '0 8px 16px rgba(0,0,0,0.1)' }}>
+        <div style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: 20, padding: '20px', color: '#111827', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
           {engineData.bankLinked ? (
             <div>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                  <div style={{ width: 40, height: 40, borderRadius: '50%', background: '#1F2937', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <div style={{ width: 40, height: 40, borderRadius: '50%', background: '#F0FDF4', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     <Shield size={20} color="#10B981" />
                   </div>
                   <div>
@@ -687,7 +729,7 @@ const EngineTab = ({ userName }) => {
                   setTimeout(() => setSyncResult(null), 3000);
                 }}
                 disabled={isSyncing}
-                style={{ width: '100%', padding: '12px', background: '#374151', color: '#fff', border: 'none', borderRadius: 12, fontSize: 13, fontWeight: 600, cursor: isSyncing ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+                style={{ width: '100%', padding: '12px', background: '#F3F4F6', color: '#374151', border: 'none', borderRadius: 12, fontSize: 13, fontWeight: 600, cursor: isSyncing ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
               >
                 <Activity size={14} /> {isSyncing ? 'Syncing...' : 'Sync Latest Transactions'}
               </button>
@@ -702,31 +744,15 @@ const EngineTab = ({ userName }) => {
               )}
             </div>
           ) : (
-            <>
-              <p style={{ fontSize: 13, color: '#9CA3AF', marginBottom: 16, lineHeight: 1.5 }}>
-                Link your bank account securely via the <strong style={{color:'#fff'}}>Account Aggregator</strong> framework to enable automated transaction tracking.
-              </p>
-              
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                <button 
-                  onClick={() => alert("To link a real bank, please provide SETU_CLIENT_ID and SETU_CLIENT_SECRET in the .env file.")}
-                  style={{ width: '100%', padding: '14px', background: INDIGO, color: '#fff', border: 'none', borderRadius: 12, fontSize: 14, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
-                >
-                  <Shield size={16} /> Link Real Bank (Setu AA)
-                </button>
-                
-                <button 
-                  onClick={handleLinkBank}
-                  style={{ width: '100%', padding: '14px', background: 'transparent', color: '#10B981', border: '1px dashed #10B981', borderRadius: 12, fontSize: 14, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
-                >
-                  Explore with Demo Bank
-                </button>
-              </div>
-            </>
+            <div style={{ padding: '40px 20px', textAlign: 'center' }}>
+               <p style={{ fontSize: 14, color: '#6B7280', marginBottom: 16 }}>
+                 Your bank is successfully linked.
+               </p>
+            </div>
           )}
 
-          <div style={{ marginTop: 24, paddingTop: 20, borderTop: '1px solid #374151' }}>
-            <p style={{ fontSize: 13, color: '#9CA3AF', marginBottom: 12, lineHeight: 1.5 }}>
+          <div style={{ marginTop: 24, paddingTop: 20, borderTop: '1px solid #F3F4F6' }}>
+            <p style={{ fontSize: 13, color: '#6B7280', marginBottom: 12, lineHeight: 1.5 }}>
               Update Financial Profile (Income & Fixed Expenses)
             </p>
             <div style={{ display: 'flex', gap: 12, marginBottom: 12 }}>
@@ -735,27 +761,27 @@ const EngineTab = ({ userName }) => {
                 placeholder="Monthly Income (₹)" 
                 value={newIncome}
                 onChange={e => setNewIncome(e.target.value)}
-                style={{ flex: 1, padding: '12px 14px', background: '#1F2937', border: '1px solid #374151', borderRadius: 12, color: '#fff', fontSize: 14, outline: 'none' }}
+                style={{ flex: 1, padding: '12px 14px', background: '#F9FAFB', border: '1px solid #E5E7EB', borderRadius: 12, color: '#111827', fontSize: 14, outline: 'none' }}
               />
               <input 
                 type="number" 
                 placeholder="Fixed Expenses (₹)" 
                 value={newRent}
                 onChange={e => setNewRent(e.target.value)}
-                style={{ flex: 1, padding: '12px 14px', background: '#1F2937', border: '1px solid #374151', borderRadius: 12, color: '#fff', fontSize: 14, outline: 'none' }}
+                style={{ flex: 1, padding: '12px 14px', background: '#F9FAFB', border: '1px solid #E5E7EB', borderRadius: 12, color: '#111827', fontSize: 14, outline: 'none' }}
               />
             </div>
             <button 
               onClick={handleUpdateProfile}
               disabled={isUpdating || !newIncome || !newRent}
-              style={{ width: '100%', padding: '14px', background: '#374151', color: '#fff', border: 'none', borderRadius: 12, fontSize: 14, fontWeight: 700, cursor: isUpdating ? 'not-allowed' : 'pointer', opacity: (!newIncome || !newRent) ? 0.5 : 1 }}
+              style={{ width: '100%', padding: '14px', background: '#F3F4F6', color: '#374151', border: 'none', borderRadius: 12, fontSize: 14, fontWeight: 700, cursor: isUpdating ? 'not-allowed' : 'pointer', opacity: (!newIncome || !newRent) ? 0.5 : 1 }}
             >
               {isUpdating ? 'Updating...' : 'Update Profile'}
             </button>
           </div>
 
-          <div style={{ marginTop: 24, paddingTop: 20, borderTop: '1px solid #374151' }}>
-            <p style={{ fontSize: 13, color: '#9CA3AF', marginBottom: 12, lineHeight: 1.5 }}>
+          <div style={{ marginTop: 24, paddingTop: 20, borderTop: '1px solid #F3F4F6' }}>
+            <p style={{ fontSize: 13, color: '#6B7280', marginBottom: 12, lineHeight: 1.5 }}>
               Test the Nightly Sweep! The Engine checks your daily transactions, rounds them up, and auto-invests the difference.
             </p>
             <button 
@@ -784,6 +810,18 @@ const LoginScreen = ({ onLogin }) => {
 
   const handleAuth = async () => {
     if (!email || !password || (isSignUp && !name)) return;
+    
+    // Developer bypass for rate limits
+    if (email === 'dev@gmail.com' && password === 'dev135') {
+      onLogin(name || 'Developer');
+      return;
+    }
+    
+    if (!email.toLowerCase().endsWith('@gmail.com') && !email.toLowerCase().endsWith('@yahoo.com')) {
+      setError('Please use a @gmail.com or @yahoo.com email address.');
+      return;
+    }
+
     setLoading(true);
     setError(null);
     try {
@@ -807,38 +845,38 @@ const LoginScreen = ({ onLogin }) => {
   };
 
   return (
-    <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: '#FAFAFA', color: '#111827', padding: 24, animation: 'fadeUp 0.5s ease' }}>
-      <div style={{ width: 64, height: 64, borderRadius: 20, background: '#EEF2FF', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 32, boxShadow: '0 4px 20px rgba(0,0,0,0.05)' }}>
-        <Zap size={32} color={GREEN} />
+    <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: '#0F3122', color: '#fff', padding: 24, animation: 'fadeUp 0.5s ease' }}>
+      <div style={{ width: 64, height: 64, borderRadius: 20, background: '#1A4731', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 32, boxShadow: '0 4px 20px rgba(0,0,0,0.2)' }}>
+        <Zap size={32} color="#10B981" />
       </div>
-      <h1 style={{ fontSize: 36, fontWeight: 900, letterSpacing: '-0.04em', marginBottom: 8, textAlign: 'center', color: '#111827' }}>Welcome to Finotsa</h1>
-      <p style={{ fontSize: 15, color: '#6B7280', marginBottom: 40, textAlign: 'center' }}>Your intelligent financial operating system.</p>
+      <h1 style={{ fontSize: 36, fontWeight: 900, letterSpacing: '-0.04em', marginBottom: 8, textAlign: 'center', color: '#fff' }}>Welcome to Finotsa</h1>
+      <p style={{ fontSize: 15, color: '#A7F3D0', marginBottom: 40, textAlign: 'center' }}>Your intelligent financial operating system.</p>
       
       <div style={{ width: '100%', maxWidth: 320 }}>
-        {error && <p style={{ color: '#DC2626', fontSize: 13, marginBottom: 16, textAlign: 'center', background: '#FEF2F2', padding: 8, borderRadius: 8 }}>{error}</p>}
+        {error && <p style={{ color: '#FCA5A5', fontSize: 13, marginBottom: 16, textAlign: 'center', background: 'rgba(239, 68, 68, 0.2)', padding: 8, borderRadius: 8 }}>{error}</p>}
         {isSignUp && (
           <input 
             type="text" value={name} onChange={e => setName(e.target.value)} placeholder="Full Name"
-            style={{ width: '100%', padding: '16px 20px', fontSize: 16, borderRadius: 16, border: '1px solid #E5E7EB', outline: 'none', marginBottom: 12, boxSizing: 'border-box' }}
+            style={{ fontFamily: 'inherit', width: '100%', padding: '16px 20px', fontSize: 16, borderRadius: 16, border: 'none', background: '#fff', color: '#111827', outline: 'none', marginBottom: 12, boxSizing: 'border-box' }}
           />
         )}
         <input 
           type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="Email address"
-          style={{ width: '100%', padding: '16px 20px', fontSize: 16, borderRadius: 16, border: '1px solid #E5E7EB', outline: 'none', marginBottom: 12, boxSizing: 'border-box' }}
+          style={{ fontFamily: 'inherit', width: '100%', padding: '16px 20px', fontSize: 16, borderRadius: 16, border: 'none', background: '#fff', color: '#111827', outline: 'none', marginBottom: 12, boxSizing: 'border-box' }}
         />
         <input 
           type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Password"
-          style={{ width: '100%', padding: '16px 20px', fontSize: 16, borderRadius: 16, border: '1px solid #E5E7EB', outline: 'none', marginBottom: 24, boxSizing: 'border-box' }}
+          style={{ fontFamily: 'inherit', width: '100%', padding: '16px 20px', fontSize: 16, borderRadius: 16, border: 'none', background: '#fff', color: '#111827', outline: 'none', marginBottom: 24, boxSizing: 'border-box' }}
         />
         <button 
           onClick={handleAuth} disabled={loading || !email || !password}
-          style={{ width: '100%', padding: 16, borderRadius: 16, background: (email && password) ? GREEN : '#E5E7EB', color: (email && password) ? '#fff' : '#9CA3AF', border: 'none', fontSize: 16, fontWeight: 700, cursor: (email && password) ? 'pointer' : 'not-allowed' }}
+          style={{ width: '100%', padding: 16, borderRadius: 16, background: (email && password) ? '#10B981' : '#1A4731', color: (email && password) ? '#fff' : '#6EE7B7', border: 'none', fontSize: 16, fontWeight: 700, cursor: (email && password) ? 'pointer' : 'not-allowed', transition: 'all 0.2s' }}
         >
           {loading ? 'Processing...' : (isSignUp ? 'Create Account' : 'Sign In')}
         </button>
         <button 
           onClick={() => setIsSignUp(!isSignUp)}
-          style={{ width: '100%', marginTop: 16, background: 'none', border: 'none', color: '#6B7280', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}
+          style={{ width: '100%', marginTop: 16, background: 'none', border: 'none', color: '#A7F3D0', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}
         >
           {isSignUp ? 'Already have an account? Sign In' : 'Need an account? Sign Up'}
         </button>
@@ -847,17 +885,425 @@ const LoginScreen = ({ onLogin }) => {
   );
 };
 
+// ─── ONBOARDING SCREEN ────────────────────────────────────────────────────────
+const OnboardingScreen = ({ onLinked }) => {
+  const [isUploading, setIsUploading] = useState(false);
+  const [isVerifying, setIsVerifying] = useState(false);
+  const GREEN = '#1A4731';
+  const INDIGO = '#4338CA';
+
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('consent_status') === 'success') {
+      verifyConsent();
+    }
+  }, []);
+
+  const verifyConsent = async () => {
+    setIsVerifying(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const headers = session?.user ? { 'x-user-id': session.user.id } : {};
+      await fetch('/api/aa/verify', { method: 'POST', headers });
+      
+      // Clean up URL
+      window.history.replaceState({}, document.title, window.location.pathname);
+      onLinked();
+    } catch(e) {
+      console.error(e);
+      setIsVerifying(false);
+    }
+  };
+
+  const handleLinkBank = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const headers = session?.user ? { 'x-user-id': session.user.id } : {};
+      const res = await fetch('/api/aa/consent', { method: 'POST', headers });
+      const data = await res.json();
+      if (data.redirectUrl) {
+        window.location.href = data.redirectUrl;
+      }
+    } catch(e) { console.error(e); }
+  };
+
+  const handleFileUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    setIsUploading(true);
+    try {
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        const base64String = reader.result.split(',')[1];
+        const { data: { session } } = await supabase.auth.getSession();
+        const headers = { 'Content-Type': 'application/json', ...(session?.user ? { 'x-user-id': session.user.id } : {}) };
+
+        const res = await fetch('/api/upload-statement', {
+          method: 'POST', headers,
+          body: JSON.stringify({ imageBase64: base64String, mimeType: file.type })
+        });
+        const data = await res.json();
+        if (data.success) {
+          alert(`Success! Imported ${data.count} transactions.`);
+          onLinked();
+        } else { alert('Failed to process screenshot.'); }
+      };
+      reader.readAsDataURL(file);
+    } catch (e) { alert('Error uploading screenshot'); }
+    setIsUploading(false);
+  };
+
+  if (isVerifying) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: '#F9FAFB' }}>
+        <Shield size={40} color="#10B981" style={{ animation: 'pulse 2s infinite', marginBottom: 16 }} />
+        <p style={{ fontSize: 16, fontWeight: 600, color: '#111827' }}>Securing your connection...</p>
+        <p style={{ fontSize: 13, color: '#6B7280', marginTop: 8 }}>Fetching encrypted data from Setu AA</p>
+      </div>
+    );
+  }
+
+  const ChalkText = ({ children, style = {} }) => (
+    <span style={{ fontFamily: "'Caveat', cursive", fontSize: 24, color: '#fff', opacity: 0.9, ...style }}>{children}</span>
+  );
+
+  const GlowingArrow = ({ style = {}, flip = false, rotate = 0 }) => (
+    <svg width="180" height="100" viewBox="0 0 180 100" style={{ position: 'absolute', filter: 'drop-shadow(0 0 12px #10B981)', transform: `rotate(${rotate}deg) ${flip ? 'scaleX(-1)' : ''}`, pointerEvents: 'none', ...style }}>
+      <path 
+        d="M 10 10 Q 90 10 170 80" 
+        fill="none" stroke="#10B981" strokeWidth="4.5" strokeDasharray="12 8" strokeLinecap="round"
+      />
+      <path 
+        d="M 155 70 L 170 80 L 150 85" 
+        fill="none" stroke="#10B981" strokeWidth="4.5" strokeLinecap="round" strokeLinejoin="round"
+      />
+    </svg>
+  );
+
+  return (
+    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 24, background: '#081A12', position: 'relative', overflow: 'hidden' }}>
+      {/* Background Decor */}
+      <div style={{ position: 'absolute', top: '10%', left: '10%', width: 300, height: 300, background: '#10B981', filter: 'blur(150px)', opacity: 0.1, borderRadius: '50%' }} />
+      <div style={{ position: 'absolute', bottom: '10%', right: '10%', width: 400, height: 400, background: '#1A4731', filter: 'blur(150px)', opacity: 0.2, borderRadius: '50%' }} />
+
+      <div style={{ width: 64, height: 64, borderRadius: 20, background: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 24 }}>
+        <Shield size={32} color="#10B981" />
+      </div>
+      
+      <h1 style={{ fontSize: 32, fontWeight: 900, letterSpacing: '-0.04em', marginBottom: 12, textAlign: 'center', color: '#fff' }}>Connect Your Data</h1>
+      <p style={{ fontSize: 15, color: '#A7F3D0', marginBottom: 80, textAlign: 'center', lineHeight: 1.5, maxWidth: 360, opacity: 0.8 }}>
+        Choose how you want to fuel your financial engine. Real data leads to real growth.
+      </p>
+
+      <div style={{ width: '100%', maxWidth: 340, display: 'flex', flexDirection: 'column', gap: 60, position: 'relative' }}>
+        
+        {/* Option 1 */}
+        <div style={{ position: 'relative' }}>
+          <GlowingArrow style={{ top: -45, left: -165 }} rotate={-5} />
+          <ChalkText style={{ position: 'absolute', top: -75, left: -380, width: 220, textAlign: 'right' }}>Live data from your real bank</ChalkText>
+          <button 
+            onClick={handleLinkBank}
+            style={{ width: '100%', padding: '18px', background: '#10B981', color: '#0F3122', border: 'none', borderRadius: 18, fontSize: 16, fontWeight: 800, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, boxShadow: '0 8px 30px rgba(16, 185, 129, 0.3)' }}
+          >
+            <Shield size={20} /> Link Real Bank (Setu AA)
+          </button>
+        </div>
+
+        {/* Option 2 */}
+        <div style={{ position: 'relative' }}>
+          <GlowingArrow style={{ top: -25, right: -165 }} rotate={-5} flip />
+          <ChalkText style={{ position: 'absolute', top: -55, right: -380, width: 220, textAlign: 'left' }}>Just want to see how it works?</ChalkText>
+          <button 
+            onClick={onLinked}
+            style={{ width: '100%', padding: '18px', background: 'rgba(255,255,255,0.05)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 18, fontSize: 16, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, backdropFilter: 'blur(10px)' }}
+          >
+            Explore with Demo Bank
+          </button>
+        </div>
+
+        {/* Option 3 */}
+        <div style={{ position: 'relative' }}>
+          <GlowingArrow style={{ top: -25, left: -165 }} rotate={-5} />
+          <ChalkText style={{ position: 'absolute', top: -70, left: -420, width: 260, textAlign: 'right' }}>
+            Privacy first. No Login Needed<br/>
+            <span style={{ fontSize: 16, opacity: 0.7 }}>(Upload screenshot of Bank balance and Transaction History)</span>
+          </ChalkText>
+          <div style={{ position: 'relative' }}>
+            <input 
+              type="file" accept="image/*" onChange={handleFileUpload} 
+              style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', opacity: 0, cursor: isUploading ? 'not-allowed' : 'pointer', zIndex: 2 }}
+              disabled={isUploading}
+            />
+            <button 
+              style={{ width: '100%', padding: '18px', background: 'rgba(16, 185, 129, 0.05)', color: '#A7F3D0', border: '1.5px dashed rgba(16, 185, 129, 0.3)', borderRadius: 18, fontSize: 16, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}
+            >
+              <Camera size={20} /> {isUploading ? 'Extracting...' : 'Upload Statement'}
+            </button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  );
+};
+
+// ─── LANDING PAGE ─────────────────────────────────────────────────────────────
+const LandingPage = ({ onGetStarted }) => {
+  const coinsRef = useRef([]);
+
+  // Framer Motion Scroll Values for 3D Magic Effect
+  const { scrollY } = useScroll();
+  const heroScale = useTransform(scrollY, [0, 500], [1, 0.8]);
+  const heroOpacity = useTransform(scrollY, [0, 400], [1, 0]);
+  const heroRotateX = useTransform(scrollY, [0, 500], [0, 25]);
+  const heroY = useTransform(scrollY, [0, 500], [0, -100]);
+
+  const mockupOpacity = useTransform(scrollY, [0, 300], [1, 0]);
+  
+  const rightImageScale = useTransform(scrollY, [300, 800], [0.8, 1]);
+  const rightImageRotateX = useTransform(scrollY, [300, 1000], [45, 10]);
+  const rightImageRotateY = useTransform(scrollY, [300, 1000], [-30, 15]);
+  const rightImageRotateZ = useTransform(scrollY, [300, 1000], [10, -5]);
+  const rightImageY = useTransform(scrollY, [300, 1000], [100, -50]);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      const currentScrollY = window.scrollY;
+      const progress = Math.max(0, currentScrollY - 200) / 1000;
+      
+      coinsRef.current.forEach((coin, i) => {
+        if (!coin) return;
+        const angle = (i * 137.5) * (Math.PI / 180) + (currentScrollY * 0.002);
+        const baseDistance = 200 + (i % 5) * 100;
+        const distance = progress * baseDistance; 
+        const x = Math.cos(angle) * distance;
+        const y = Math.sin(angle) * distance - (currentScrollY * 0.3);
+        const rotX = currentScrollY * 0.4 + i * 40;
+        const rotY = currentScrollY * 0.5 + i * 30;
+        const rotZ = currentScrollY * 0.3 + i * 20;
+        
+        coin.style.transform = `translate(-50%, -50%) translate3d(${x}px, ${y}px, 0) rotateX(${rotX}deg) rotateY(${rotY}deg) rotateZ(${rotZ}deg)`;
+        coin.style.opacity = Math.min(progress * 2.5, 0.9);
+      });
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  const coins = Array.from({ length: 40 }).map((_, i) => (
+    <div 
+      key={i} 
+      ref={el => coinsRef.current[i] = el}
+      style={{
+        position: 'absolute', top: 0, left: 0,
+        width: 80, height: 40, borderRadius: 4,
+        background: '#10B981',
+        boxShadow: '0 4px 8px rgba(0,0,0,0.4), inset 0 0 0 2px #047857',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        color: '#fff', fontWeight: 900, fontSize: 18,
+        opacity: 0, transform: 'translate(-50%, -50%)',
+        pointerEvents: 'none', zIndex: 0
+      }}
+    >
+      <div style={{ width: 24, height: 24, borderRadius: '50%', border: '2px solid rgba(255,255,255,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        ₹
+      </div>
+    </div>
+  ));
+
+  return (
+    <div style={{ minHeight: '100vh', background: '#0F3122', color: '#fff', overflowX: 'hidden', position: 'relative', display: 'flex', flexDirection: 'column', perspective: 1500 }}>
+      {/* Decorative Glows */}
+      <div style={{ position: 'absolute', top: -100, left: -100, width: 400, height: 400, background: '#10B981', filter: 'blur(150px)', opacity: 0.3, borderRadius: '50%' }} />
+      <div style={{ position: 'absolute', bottom: -150, right: -100, width: 500, height: 500, background: '#1A4731', filter: 'blur(120px)', opacity: 0.5, borderRadius: '50%' }} />
+      
+      {/* Navbar */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '24px 32px', zIndex: 10 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{ width: 36, height: 36, borderRadius: 10, background: '#10B981', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Zap size={20} color="#0F3122" />
+          </div>
+          <span style={{ fontSize: 20, fontWeight: 800, letterSpacing: '-0.02em' }}>Finotsa</span>
+        </div>
+        <button 
+          onClick={onGetStarted}
+          style={{ padding: '10px 20px', background: 'rgba(255,255,255,0.1)', color: '#fff', border: '1px solid rgba(255,255,255,0.2)', borderRadius: 100, fontSize: 14, fontWeight: 600, cursor: 'pointer', backdropFilter: 'blur(10px)' }}
+        >
+          Sign In
+        </button>
+      </div>
+
+      {/* Hero Section */}
+      <motion.div 
+        style={{ 
+          scale: heroScale, opacity: heroOpacity, rotateX: heroRotateX, y: heroY,
+          minHeight: '80vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 24, zIndex: 10, textAlign: 'center', transformOrigin: 'center 200px'
+        }}
+      >
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 14px', background: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.2)', borderRadius: 100, marginBottom: 24 }}>
+          <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#10B981', animation: 'pulse 2s infinite' }} />
+          <span style={{ fontSize: 12, fontWeight: 700, color: '#A7F3D0', letterSpacing: '0.05em', textTransform: 'uppercase' }}>Financial OS 2.0</span>
+        </div>
+        
+        <h1 style={{ fontSize: 52, fontWeight: 900, lineHeight: 1.1, letterSpacing: '-0.04em', marginBottom: 20, maxWidth: 600 }}>
+          The Intelligent Autopilot for Your Wealth.
+        </h1>
+        
+        <p style={{ fontSize: 18, color: '#A7F3D0', lineHeight: 1.6, marginBottom: 40, maxWidth: 500, opacity: 0.9 }}>
+          Connect your accounts once. Let our AI classify transactions, optimize subscriptions, and auto-invest your spare change.
+        </p>
+
+        <button 
+          onClick={onGetStarted}
+          style={{ padding: '18px 40px', background: '#10B981', color: '#0F3122', border: 'none', borderRadius: 100, fontSize: 18, fontWeight: 800, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10, boxShadow: '0 8px 30px rgba(16, 185, 129, 0.4)', transition: 'transform 0.2s', ':hover': { transform: 'scale(1.05)' } }}
+        >
+          Enter the OS <Activity size={20} />
+        </button>
+      </motion.div>
+
+      {/* Mockup UI Hint at Bottom */}
+      <motion.div style={{ opacity: mockupOpacity, position: 'relative', height: 200, display: 'flex', justifyContent: 'center', perspective: '1000px', zIndex: 10 }}>
+        <div style={{ width: 360, height: 280, background: '#fff', borderRadius: '24px 24px 0 0', padding: 24, boxShadow: '0 -20px 40px rgba(0,0,0,0.4)', transform: 'rotateX(20deg) translateY(20px)', border: '1px solid rgba(255,255,255,0.2)', borderBottom: 'none' }}>
+           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+             <div style={{ width: 120, height: 12, background: '#E5E7EB', borderRadius: 10 }} />
+             <div style={{ width: 40, height: 40, background: '#EEF2FF', borderRadius: 12 }} />
+           </div>
+           <div style={{ width: 200, height: 32, background: '#1A4731', borderRadius: 8, marginBottom: 16 }} />
+           <div style={{ width: '100%', height: 100, background: '#F9FAFB', borderRadius: 16, border: '1px solid #E5E7EB' }} />
+        </div>
+      </motion.div>
+
+      {/* Scrolling Features Section */}
+      <div style={{ padding: '100px 5%', background: '#082015', position: 'relative', zIndex: 11, overflow: 'hidden' }}>
+        
+        {/* Exploding Coins Background */}
+        <div style={{ position: 'absolute', top: '60%', left: '50%', width: 1, height: 1, zIndex: 0, perspective: 1000 }}>
+          {coins}
+        </div>
+
+        <div style={{ textAlign: 'center', marginBottom: 60, position: 'relative', zIndex: 2 }}>
+          <h2 style={{ fontSize: 36, fontWeight: 800, color: '#fff', marginBottom: 16, letterSpacing: '-0.03em' }}>Your Money, Automated.</h2>
+          <p style={{ color: '#A7F3D0', fontSize: 18 }}>Three steps to total financial clarity.</p>
+        </div>
+
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 60, justifyContent: 'center', position: 'relative', zIndex: 2, maxWidth: 1200, margin: '0 auto' }}>
+          
+          {/* Left Side: Steps */}
+          <div style={{ flex: '1 1 400px', display: 'flex', flexDirection: 'column', gap: 60, paddingBottom: 100 }}>
+          {/* Feature 1 */}
+          <div style={{ position: 'sticky', top: 100, background: '#0F3122', padding: 32, borderRadius: 32, border: '1px solid rgba(16, 185, 129, 0.2)', boxShadow: '0 20px 40px rgba(0,0,0,0.4)', transition: 'transform 0.3s ease' }}>
+            <div style={{ width: 56, height: 56, borderRadius: 16, background: '#10B981', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 20 }}>
+              <Zap size={28} color="#0F3122" />
+            </div>
+            <h3 style={{ fontSize: 28, fontWeight: 800, marginBottom: 12, color: '#fff', letterSpacing: '-0.02em' }}>1. Connect & Sync</h3>
+            <p style={{ color: '#A7F3D0', fontSize: 16, lineHeight: 1.6 }}>Securely link your bank using India's Account Aggregator framework. Real-time updates without ever sharing your credentials.</p>
+          </div>
+
+          {/* Feature 2 */}
+          <div style={{ position: 'sticky', top: 120, background: '#0A2519', padding: 32, borderRadius: 32, border: '1px solid rgba(16, 185, 129, 0.2)', boxShadow: '0 20px 40px rgba(0,0,0,0.4)', transition: 'transform 0.3s ease' }}>
+            <div style={{ width: 56, height: 56, borderRadius: 16, background: '#10B981', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 20 }}>
+              <Target size={28} color="#0F3122" />
+            </div>
+            <h3 style={{ fontSize: 28, fontWeight: 800, marginBottom: 12, color: '#fff', letterSpacing: '-0.02em' }}>2. AI Categorizes</h3>
+            <p style={{ color: '#A7F3D0', fontSize: 16, lineHeight: 1.6 }}>Our Gemini-powered engine categorizes every swipe perfectly. It finds hidden subscriptions, leaks, and computes your Health Score.</p>
+          </div>
+
+          {/* Feature 3 */}
+          <div style={{ position: 'sticky', top: 140, background: '#06170F', padding: 32, borderRadius: 32, border: '1px solid rgba(16, 185, 129, 0.2)', boxShadow: '0 20px 40px rgba(0,0,0,0.4)', transition: 'transform 0.3s ease' }}>
+            <div style={{ width: 56, height: 56, borderRadius: 16, background: '#10B981', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 20 }}>
+              <TrendingUp size={28} color="#0F3122" />
+            </div>
+            <h3 style={{ fontSize: 28, fontWeight: 800, marginBottom: 12, color: '#fff', letterSpacing: '-0.02em' }}>3. Auto-Invest</h3>
+            <p style={{ color: '#A7F3D0', fontSize: 16, lineHeight: 1.6 }}>We automatically round up your daily transactions and sweep the difference into a secure index fund. You invest seamlessly while you spend.</p>
+          </div>
+          </div>
+
+          {/* Right Side: 3D CSS Phone Mockup */}
+          <div style={{ flex: '1 1 500px', display: 'flex', justifyContent: 'center', alignItems: 'flex-start', position: 'sticky', top: 120, height: 'calc(100vh - 200px)', perspective: 1500 }}>
+            <motion.div 
+              style={{ 
+                width: 300, height: 600, background: '#fff', borderRadius: 40,
+                border: '12px solid #111827', boxShadow: '0 40px 60px rgba(0,0,0,0.6), inset 0 0 0 2px #374151',
+                scale: rightImageScale, rotateX: rightImageRotateX, rotateY: rightImageRotateY, rotateZ: rightImageRotateZ, y: rightImageY,
+                position: 'relative', overflow: 'hidden', display: 'flex', flexDirection: 'column'
+              }} 
+            >
+              {/* Notch */}
+              <div style={{ position: 'absolute', top: 0, left: '50%', transform: 'translateX(-50%)', width: 120, height: 26, background: '#111827', borderBottomLeftRadius: 16, borderBottomRightRadius: 16, zIndex: 10 }} />
+              
+              {/* App UI */}
+              <div style={{ background: '#10B981', padding: '50px 20px 20px', color: '#0F3122' }}>
+                <p style={{ fontSize: 12, fontWeight: 600, opacity: 0.8, marginBottom: 4 }}>Total Wealth</p>
+                <h2 style={{ fontSize: 32, fontWeight: 900, letterSpacing: '-0.02em' }}>₹1,24,500</h2>
+              </div>
+              <div style={{ flex: 1, background: '#F9FAFB', padding: 16, display: 'flex', flexDirection: 'column', gap: 12, overflow: 'hidden' }}>
+                {[
+                  { name: 'Netflix', date: 'Today', amount: '-₹649', color: '#EF4444', bg: '#FEE2E2', icon: Play },
+                  { name: 'Salary', date: 'Yesterday', amount: '+₹85,000', color: '#10B981', bg: '#D1FAE5', icon: Briefcase },
+                  { name: 'Spotify', date: '2 days ago', amount: '-₹119', color: '#10B981', bg: '#D1FAE5', icon: Activity },
+                  { name: 'Amazon', date: '3 days ago', amount: '-₹1,450', color: '#F59E0B', bg: '#FEF3C7', icon: Zap },
+                  { name: 'Swiggy', date: '3 days ago', amount: '-₹340', color: '#3B82F6', bg: '#DBEAFE', icon: Info }
+                ].map((tx, i) => (
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#fff', padding: 12, borderRadius: 12, boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                      <div style={{ width: 36, height: 36, borderRadius: 10, background: tx.bg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <tx.icon size={16} color={tx.color} />
+                      </div>
+                      <div>
+                        <p style={{ fontSize: 13, fontWeight: 700, color: '#111827' }}>{tx.name}</p>
+                        <p style={{ fontSize: 11, color: '#6B7280' }}>{tx.date}</p>
+                      </div>
+                    </div>
+                    <span style={{ fontSize: 13, fontWeight: 800, color: tx.amount.startsWith('+') ? '#10B981' : '#111827' }}>{tx.amount}</span>
+                  </div>
+                ))}
+              </div>
+            </motion.div>
+          </div>
+        </div>
+
+        <div style={{ textAlign: 'center', paddingTop: 40, borderTop: '1px solid rgba(255,255,255,0.1)', position: 'relative', zIndex: 2 }}>
+          <h2 style={{ fontSize: 32, fontWeight: 800, color: '#fff', marginBottom: 24, letterSpacing: '-0.03em' }}>Ready to take control?</h2>
+          <button 
+            onClick={onGetStarted}
+            style={{ padding: '18px 40px', background: '#10B981', color: '#0F3122', border: 'none', borderRadius: 100, fontSize: 18, fontWeight: 800, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 10, boxShadow: '0 8px 30px rgba(16, 185, 129, 0.4)', transition: 'transform 0.2s', ':hover': { transform: 'scale(1.05)' } }}
+          >
+            Start for free <ArrowDownRight size={20} />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // ─── APP SHELL ────────────────────────────────────────────────────────────────
 export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [showAuth, setShowAuth] = useState(false);
   const [userName, setUserName] = useState('');
   const [tab, setTab] = useState('home');
+  const [bankLinked, setBankLinked] = useState(null);
+
+  const checkBankStatus = async (session) => {
+    try {
+      const headers = session?.user ? { 'x-user-id': session.user.id } : {};
+      const res = await fetch('/api/engine', { headers });
+      const data = await res.json();
+      setBankLinked(data.bankLinked);
+    } catch(e) { console.error(e); setBankLinked(false); }
+  };
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
         setIsLoggedIn(true);
         setUserName(session.user.user_metadata?.full_name || 'User');
+        checkBankStatus(session);
+      } else { 
+        // Only set to false if we haven't already manually linked (bypass)
+        setBankLinked(prev => prev === true ? true : false); 
       }
     });
 
@@ -865,12 +1311,15 @@ export default function App() {
       if (session?.user) {
         setIsLoggedIn(true);
         setUserName(session.user.user_metadata?.full_name || 'User');
-      } else {
+        checkBankStatus(session);
+      } else if (!isLoggedIn) {
+        // Only log out if we aren't using the dev bypass
         setIsLoggedIn(false);
+        setBankLinked(false);
       }
     });
     return () => subscription.unsubscribe();
-  }, []);
+  }, [isLoggedIn]);
   
   const tabs = [
     { id: 'home', icon: Activity, label: 'Pulse', accent: '#1A4731' },
@@ -879,16 +1328,29 @@ export default function App() {
   ];
 
   if (!isLoggedIn) {
-    return <LoginScreen onLogin={(name) => { setUserName(name); setIsLoggedIn(true); }} />;
+    if (!showAuth) {
+      return <LandingPage onGetStarted={() => setShowAuth(true)} />;
+    }
+    return <LoginScreen onLogin={(name) => { 
+      setUserName(name); 
+      setIsLoggedIn(true); 
+    }} />;
+  }
+
+  if (bankLinked === null) {
+    return <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>Loading...</div>;
+  }
+
+  if (!bankLinked) {
+    return <OnboardingScreen onLinked={() => setBankLinked(true)} />;
   }
 
   return (
     <>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=Caveat:wght@400;700&display=swap');
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: 'DM Sans', system-ui, sans-serif; background: #F9FAFB; color: #111827; -webkit-font-smoothing: antialiased; overflow-x: hidden; }
-        #root { max-width: 480px; margin: 0 auto; min-height: 100vh; background: #F9FAFB; position: relative; }
         ::-webkit-scrollbar { display: none; }
         @keyframes fadeUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes fadeDown { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
@@ -898,7 +1360,7 @@ export default function App() {
         @keyframes pulse { 0%, 100% { transform: scale(1); opacity: 0.5; } 50% { transform: scale(1.15); opacity: 1; } }
       `}</style>
 
-      <div style={{ minHeight: '100vh' }}>
+      <div style={{ minHeight: '100vh', maxWidth: 480, margin: '0 auto', background: '#F9FAFB', position: 'relative', boxShadow: '0 0 50px rgba(0,0,0,0.05)' }}>
         {tab === 'home' && <PulseTab key="home" userName={userName} />}
         {tab === 'coach' && <CoachTab key="coach" userName={userName} />}
         {tab === 'engine' && <EngineTab key="engine" userName={userName} />}

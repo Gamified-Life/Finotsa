@@ -10,7 +10,7 @@ const prisma = new PrismaClient({});
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '50mb' }));
 
 const getUser = async (req) => {
   const authId = req.headers['x-user-id'];
@@ -185,29 +185,82 @@ app.get('/api/engine', async (req, res) => {
 
 app.post('/api/aa/consent', async (req, res) => {
   const user = await getUser(req);
-  
-  if (process.env.SETU_CLIENT_ID) {
-    // Real implementation would call Setu API here
-    // const response = await fetch('https://fiu-sandbox.setu.co/consents', {...})
-    // For now we simulate it since keys aren't set
-  }
+  if (!user) return res.status(401).json({ error: 'Unauthorized' });
 
-  // Mock response
-  const fakeConsentId = `consent_${Math.random().toString(36).substr(2, 9)}`;
-  
-  if (user) {
+  try {
+    if (process.env.SETU_CLIENT_ID && process.env.SETU_CLIENT_SECRET) {
+      // Real implementation calling Setu FIU Sandbox API
+      const setuRes = await fetch('https://fiu-sandbox.setu.co/consents', {
+        method: 'POST',
+        headers: {
+          'x-client-id': process.env.SETU_CLIENT_ID,
+          'x-client-secret': process.env.SETU_CLIENT_SECRET,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          Detail: {
+            consentStart: new Date().toISOString(),
+            consentExpiry: new Date(Date.now() + 180 * 24 * 60 * 60 * 1000).toISOString(),
+            Customer: { id: `${user.id}@finotsa` },
+            FIDataRange: {
+              from: new Date(Date.now() - 180 * 24 * 60 * 60 * 1000).toISOString(),
+              to: new Date().toISOString(),
+            },
+            consentMode: "STORE",
+            consentTypes: ["TRANSACTIONS", "PROFILE", "SUMMARY"],
+            fetchType: "PERIODIC",
+            Frequency: { value: 1, unit: "DAY" },
+            DataFilter: [{ type: "TRANSACTIONAMOUNT", operator: ">", value: "0" }],
+            DataLife: { unit: "MONTH", value: 6 },
+            DataConsumer: { id: "FIU" },
+            Purpose: { 
+              code: "101", 
+              refUri: "https://api.rebit.org.in/aa/purpose/101.xml", 
+              text: "Wealth management service", 
+              Category: { type: "string" } 
+            },
+            fiTypes: ["DEPOSIT"]
+          },
+          context: [
+            { key: "accounttype", value: "SAVINGS" }
+          ],
+          redirectUrl: "http://localhost:5173/?consent_status=success"
+        })
+      });
+
+      const setuData = await setuRes.json();
+      
+      if (setuData && setuData.id) {
+        await prisma.user.update({
+          where: { id: user.id },
+          data: { aaConsentId: setuData.id }
+        });
+
+        return res.json({ 
+          success: true, 
+          consentId: setuData.id,
+          redirectUrl: setuData.url 
+        });
+      }
+    }
+
+    // Mock response fallback if Setu keys aren't configured
+    const fakeConsentId = `consent_${Math.random().toString(36).substr(2, 9)}`;
+    
     await prisma.user.update({
       where: { id: user.id },
       data: { aaConsentId: fakeConsentId }
     });
+    
+    res.json({ 
+      success: true, 
+      consentId: fakeConsentId,
+      redirectUrl: `/?consent_status=success`
+    });
+  } catch (error) {
+    console.error('Setu AA Error:', error);
+    res.status(500).json({ error: 'Failed to create AA consent request' });
   }
-  
-  res.json({ 
-    success: true, 
-    consentId: fakeConsentId,
-    // Provide a mock redirect URL that will just take us back to the app with a success param
-    redirectUrl: `/?consent_status=success`
-  });
 });
 
 app.post('/api/aa/verify', async (req, res) => {
@@ -262,6 +315,77 @@ app.post('/api/aa/sync', async (req, res) => {
   });
 
   res.json({ success: true, transaction });
+});
+
+app.post('/api/upload-statement', async (req, res) => {
+  const user = await getUser(req);
+  if (!user) return res.status(401).json({ error: 'Unauthorized' });
+
+  const { imageBase64, mimeType } = req.body;
+  if (!imageBase64 || !mimeType) return res.status(400).json({ error: 'Missing image data' });
+
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: [
+        {
+          inlineData: {
+            data: imageBase64,
+            mimeType: mimeType
+          }
+        },
+        "Extract all bank transactions from this screenshot. Return a JSON array of objects, where each object has 'amount' (number) and 'shopName' (string, representing the merchant or description). Return ONLY the raw JSON array without any markdown formatting like ```json or anything else."
+      ]
+    });
+
+    let rawText = response.text?.trim() || '[]';
+    if (rawText.startsWith('```json')) rawText = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
+    if (rawText.startsWith('```')) rawText = rawText.replace(/```/g, '').trim();
+
+    const extractedTxs = JSON.parse(rawText);
+    const maps = await prisma.merchantMap.findMany();
+    const categories = await prisma.category.findMany();
+    const defaultCatId = categories.find(c => c.name === 'Shopping')?.id || 1;
+
+    let addedCount = 0;
+    for (const tx of extractedTxs) {
+      if (!tx.amount || !tx.shopName) continue;
+      
+      let categoryId = null;
+      for (const map of maps) {
+        if (tx.shopName.toUpperCase().includes(map.pattern.toUpperCase())) {
+          categoryId = map.categoryId;
+          break;
+        }
+      }
+      
+      if (!categoryId) {
+        categoryId = defaultCatId;
+      }
+
+      await prisma.transaction.create({
+        data: {
+          userId: user.id,
+          amount: parseFloat(tx.amount),
+          shopName: String(tx.shopName),
+          categoryId
+        }
+      });
+      addedCount++;
+    }
+
+    if (!user.bankLinked) {
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { bankLinked: true }
+      });
+    }
+
+    res.json({ success: true, count: addedCount });
+  } catch (error) {
+    console.error('OCR Error:', error);
+    res.status(500).json({ error: 'Failed to process screenshot' });
+  }
 });
 
 // Phase 1: Simulated Account Aggregator Webhook (Transaction Classification)

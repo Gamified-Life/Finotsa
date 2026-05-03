@@ -115,7 +115,14 @@ body {
 
 /* App Container (Mobile Mockup) */
 #root {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.mobile-app-container {
   max-width: 480px;
+  width: 100%;
   margin: 0 auto;
   min-height: 100vh;
   position: relative;
