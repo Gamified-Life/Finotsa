@@ -406,15 +406,59 @@ const EngineTab = ({ userName }) => {
   const tickerItems = ['Uber ₹243 → +₹7 swept', 'Swiggy ₹180 → +₹20 saved', 'Coffee ₹90 → +₹10 invested', 'Zomato ₹320 → +₹30 swept'];
 
   const [engineData, setEngineData] = useState(null);
+  const [isSweeping, setIsSweeping] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncResult, setSyncResult] = useState(null);
+  const [simAmount, setSimAmount] = useState('');
+  const [simShop, setSimShop] = useState('');
 
-  useEffect(() => {
+  const fetchEngineData = () => {
     fetch('/api/engine')
       .then(res => res.json())
       .then(data => setEngineData(data))
       .catch(err => console.error("Error fetching engine data:", err));
+  };
+
+  useEffect(() => {
+    fetchEngineData();
   }, []);
 
   if (!engineData) return <div style={{ padding: 24 }}>Loading Engine...</div>;
+
+  const handleSimulateSync = async () => {
+    if (!simAmount || !simShop) return;
+    setIsSyncing(true);
+    try {
+      const res = await fetch('/api/webhook/transaction', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: 1, amount: Number(simAmount), shopName: simShop })
+      });
+      const data = await res.json();
+      setSyncResult(data.transaction);
+      fetchEngineData(); // Refresh engine data (portfolio might have changed if we hooked it up, but for now just refreshing)
+      // Clear inputs
+      setSimAmount('');
+      setSimShop('');
+    } catch (e) {
+      console.error("Sync failed", e);
+    }
+    setIsSyncing(false);
+    
+    // Hide success after 3s
+    setTimeout(() => setSyncResult(null), 3000);
+  };
+
+  const handleSimulateSweep = async () => {
+    setIsSweeping(true);
+    try {
+      await fetch('/api/cron/engine-sweep', { method: 'POST' });
+      fetchEngineData(); // Refresh portfolio and ticker
+    } catch (e) {
+      console.error("Sweep failed", e);
+    }
+    setIsSweeping(false);
+  };
 
   const rules = engineData.rules.map(r => ({
     ...r,
@@ -422,6 +466,8 @@ const EngineTab = ({ userName }) => {
           r.icon === 'Target' ? <Target size={15} color={INDIGO} /> :
           <Shield size={15} color={INDIGO} />
   }));
+
+  const tickerData = engineData.sweeps && engineData.sweeps.length > 0 ? engineData.sweeps : tickerItems;
   return (
     <div style={{ animation: 'fadeUp 0.3s ease' }}>
       <header style={{ padding: '28px 24px 16px' }}>
@@ -443,7 +489,7 @@ const EngineTab = ({ userName }) => {
 
           <div style={{ background: 'rgba(0,0,0,0.25)', margin: '0 -24px', padding: '12px 0', overflow: 'hidden' }}>
             <div style={{ display: 'flex', gap: 32, animation: 'tickerLeft 18s linear infinite', whiteSpace: 'nowrap', width: 'max-content' }}>
-              {[...tickerItems, ...tickerItems, ...tickerItems].map((item, i) => (
+              {[...tickerData, ...tickerData, ...tickerData].map((item, i) => (
                 <span key={i} style={{ fontSize: 12, fontWeight: 500 }}>
                   {item.split('→')[0]}
                   <span style={{ color: '#4ADE80' }}>→{item.split('→')[1]}</span>
@@ -480,7 +526,7 @@ const EngineTab = ({ userName }) => {
       </div>
 
       {/* Portfolio Snapshot */}
-      <div style={{ padding: '24px 24px 120px' }}>
+      <div style={{ padding: '24px 24px 24px' }}>
         <p style={{ fontSize: 11, fontWeight: 700, color: '#9CA3AF', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 14 }}>Portfolio Snapshot</p>
         <div style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: 20, padding: '20px', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
           {/* Area chart */}
@@ -513,8 +559,69 @@ const EngineTab = ({ userName }) => {
           <div style={{ marginTop: 16, paddingTop: 14, borderTop: '1px solid #F3F4F6' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <CheckCircle size={13} color="#16A34A" />
-              <p style={{ fontSize: 11, color: '#9CA3AF', lineHeight: 1.5 }}>Auto-invested into Nifty 50 Index Fund · SEBI regulated · Withdraw anytime</p>
+              <p style={{ fontSize: 11, color: '#9CA3AF', lineHeight: 1.5 }}>Auto-invested into Nifty 50 Index Fund · SEBI regulated</p>
             </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Account Aggregator Sandbox */}
+      <div style={{ padding: '0 24px 120px' }}>
+        <p style={{ fontSize: 11, fontWeight: 700, color: '#9CA3AF', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 14 }}>Developer Sandbox: Simulate Bank Sync</p>
+        <div style={{ background: '#111827', border: '1px solid #374151', borderRadius: 20, padding: '20px', color: '#fff', boxShadow: '0 8px 16px rgba(0,0,0,0.1)' }}>
+          <p style={{ fontSize: 13, color: '#9CA3AF', marginBottom: 16, lineHeight: 1.5 }}>
+            Paste a raw UPI transaction below. Our backend will use the <strong style={{color:'#fff'}}>MerchantMap</strong> or LLM fallback to categorize it automatically.
+          </p>
+          
+          <div style={{ display: 'flex', gap: 12, marginBottom: 12 }}>
+            <input 
+              type="number" 
+              placeholder="Amount (₹)" 
+              value={simAmount}
+              onChange={e => setSimAmount(e.target.value)}
+              style={{ width: '35%', padding: '12px 14px', background: '#1F2937', border: '1px solid #374151', borderRadius: 12, color: '#fff', fontSize: 14, outline: 'none' }}
+            />
+            <input 
+              type="text" 
+              placeholder="e.g. UPI/1234/ZOMATO" 
+              value={simShop}
+              onChange={e => setSimShop(e.target.value)}
+              style={{ flex: 1, padding: '12px 14px', background: '#1F2937', border: '1px solid #374151', borderRadius: 12, color: '#fff', fontSize: 14, outline: 'none' }}
+            />
+          </div>
+          
+          <button 
+            onClick={handleSimulateSync}
+            disabled={isSyncing || !simAmount || !simShop}
+            style={{ width: '100%', padding: '14px', background: INDIGO, color: '#fff', border: 'none', borderRadius: 12, fontSize: 14, fontWeight: 700, cursor: isSyncing ? 'not-allowed' : 'pointer', opacity: (!simAmount || !simShop) ? 0.5 : 1 }}
+          >
+            {isSyncing ? 'Syncing with Bank API...' : 'Simulate Incoming Transaction'}
+          </button>
+
+          {syncResult && (
+            <div style={{ marginTop: 16, padding: '12px', background: 'rgba(16, 185, 129, 0.1)', border: '1px dashed #10B981', borderRadius: 12, animation: 'fadeDown 0.3s ease' }}>
+              <p style={{ fontSize: 12, color: '#10B981', fontWeight: 600, marginBottom: 4 }}>✓ Sync Successful & Categorized</p>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: 14 }}>{syncResult.shopName}</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ fontSize: 16 }}>{syncResult.category?.emoji}</span>
+                  <span style={{ fontSize: 12, fontWeight: 700 }}>{syncResult.category?.name}</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div style={{ marginTop: 24, paddingTop: 20, borderTop: '1px solid #374151' }}>
+            <p style={{ fontSize: 13, color: '#9CA3AF', marginBottom: 12, lineHeight: 1.5 }}>
+              Test the Nightly Sweep! The Engine checks your daily transactions, rounds them up, and auto-invests the difference.
+            </p>
+            <button 
+              onClick={handleSimulateSweep}
+              disabled={isSweeping}
+              style={{ width: '100%', padding: '14px', background: 'transparent', border: `1px dashed #10B981`, color: '#10B981', borderRadius: 12, fontSize: 14, fontWeight: 700, cursor: isSweeping ? 'wait' : 'pointer' }}
+            >
+              {isSweeping ? 'Sweeping...' : 'Trigger Nightly Engine Sweep'}
+            </button>
           </div>
         </div>
       </div>

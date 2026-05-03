@@ -4,6 +4,17 @@ const prisma = new PrismaClient({});
 async function main() {
   console.log('Seeding database...');
 
+  // Clear existing data to avoid conflicts
+  await prisma.healthScoreHistory.deleteMany({});
+  await prisma.merchantMap.deleteMany({});
+  await prisma.transaction.deleteMany({});
+  await prisma.insight.deleteMany({});
+  await prisma.benchmark.deleteMany({});
+  await prisma.portfolio.deleteMany({});
+  await prisma.engineRule.deleteMany({});
+  await prisma.category.deleteMany({});
+  await prisma.user.deleteMany({});
+
   // Create a default user
   const user = await prisma.user.create({
     data: {
@@ -34,6 +45,23 @@ async function main() {
       { userId: user.id, categoryId: catCafe.id, amount: 550, shopName: 'Starbucks' },
       { userId: user.id, categoryId: catCafe.id, amount: 340, shopName: 'Blue Tokai' },
     ],
+  });
+
+  // Create MerchantMaps
+  await prisma.merchantMap.createMany({
+    data: [
+      { pattern: 'SWIGGY', categoryId: catFood.id },
+      { pattern: 'ZOMATO', categoryId: catFood.id },
+      { pattern: 'MCDONALDS', categoryId: catFood.id },
+      { pattern: 'UBER', categoryId: catTransport.id },
+      { pattern: 'OLA', categoryId: catTransport.id },
+      { pattern: 'NETFLIX', categoryId: catSubs.id },
+      { pattern: 'SPOTIFY', categoryId: catSubs.id },
+      { pattern: 'AMAZON', categoryId: catSubs.id },
+      { pattern: 'MYNTRA', categoryId: catShopping.id },
+      { pattern: 'STARBUCKS', categoryId: catCafe.id },
+      { pattern: 'BLUE TOKAI', categoryId: catCafe.id },
+    ]
   });
 
   // Create Insights
