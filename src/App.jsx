@@ -4,8 +4,30 @@ import { motion, useScroll, useTransform } from 'framer-motion';
 import { 
   Bell, Activity, Play, Cpu, ChevronRight, ShieldAlert, TrendingDown,
   TrendingUp, ArrowDownRight, Briefcase, Zap, Target, Shield,
-  AlertTriangle, CheckCircle, Info, Camera
+  AlertTriangle, CheckCircle, Info, Camera, ArrowLeft, Sun, Moon
 } from 'lucide-react';
+
+// ─── Shared Components ────────────────────────────────────────────────────────
+const BackButton = ({ onClick, color }) => (
+  <button 
+    onClick={onClick}
+    style={{ 
+      position: 'absolute', top: 24, left: 24, 
+      background: 'rgba(128,128,128,0.1)', 
+      border: `1px solid rgba(128,128,128,0.2)`, 
+      borderRadius: 12, 
+      width: 40, height: 40, 
+      display: 'flex', alignItems: 'center', justifyContent: 'center', 
+      cursor: 'pointer', zIndex: 100,
+      backdropFilter: 'blur(10px)',
+      transition: 'all 0.2s ease'
+    }}
+    onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.05)'}
+    onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
+  >
+    <ArrowLeft size={20} color={color} />
+  </button>
+);
 
 // ─── Animated Counter ─────────────────────────────────────────────────────────
 const AnimatedNumber = ({ value, prefix = '', suffix = '', duration = 1000, style = {} }) => {
@@ -48,7 +70,7 @@ const AnimatedArc = ({ progress, color, strokeWidth = 8, size = 200 }) => {
 };
 
 // ─── PULSE TAB ────────────────────────────────────────────────────────────────
-const PulseTab = ({ userName }) => {
+const PulseTab = ({ userName, onBack }) => {
   const [showBreakdown, setShowBreakdown] = useState(false);
   const [expandedCategory, setExpandedCategory] = useState(null);
   const [detailedCategories, setDetailedCategories] = useState([]);
@@ -74,35 +96,37 @@ const PulseTab = ({ userName }) => {
     fetchPulseData();
   }, []);
 
-  return (
-    <div style={{ animation: 'fadeUp 0.3s ease' }}>
-      <header style={{ padding: '28px 24px 8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div>
-          <p style={{ fontSize: 12, color: '#9CA3AF', fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 4 }}>Good evening, {userName}</p>
-          <h1 style={{ fontSize: 22, fontWeight: 800, color: '#111827', letterSpacing: '-0.02em' }}>Today's Pulse</h1>
-        </div>
-        <div style={{ position: 'relative', width: 40, height: 40, borderRadius: '50%', background: '#fff', border: '1px solid #E5E7EB', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
-          <Bell size={18} color="#6B7280" />
-          <span style={{ position: 'absolute', top: 9, right: 9, width: 7, height: 7, background: GREEN, borderRadius: '50%', border: '2px solid #fff' }} />
-        </div>
-      </header>
+    const textColor = '#111827';
+    const subTextColor = '#6B7280';
+    const cardBg = '#fff';
+    const borderColor = '#E5E7EB';
+
+    return (
+      <div style={{ animation: 'fadeUp 0.3s ease', position: 'relative' }}>
+        <header style={{ padding: '70px 24px 8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <BackButton onClick={onBack} color={textColor} />
+          <div>
+            <p style={{ fontSize: 12, color: subTextColor, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 4 }}>Good evening, {userName}</p>
+            <h1 style={{ fontSize: 22, fontWeight: 800, color: textColor, letterSpacing: '-0.02em' }}>Today's Pulse</h1>
+          </div>
+        </header>
 
       {/* Safe to Spend Hero */}
       <div style={{ padding: '16px 24px' }}>
-        <div style={{ background: GREEN_TINT, borderRadius: 24, padding: '28px 24px', textAlign: 'center', border: `1px solid ${GREEN}22`, position: 'relative', overflow: 'hidden' }}>
+        <div style={{ background: GREEN_TINT, borderRadius: 24, padding: '28px 24px', textAlign: 'center', border: `1px solid ${GREEN + '22'}`, position: 'relative', overflow: 'hidden' }}>
           <div style={{ position: 'absolute', top: -40, right: -40, width: 120, height: 120, borderRadius: '50%', background: `${GREEN}08` }} />
-          <p style={{ fontSize: 12, fontWeight: 600, color: GREEN, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 8 }}>Safe to spend today</p>
+          <p style={{ fontSize: 12, fontWeight: 600, color: '#10B981', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 8 }}>Safe to spend today</p>
           <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: 4 }}>
-            <span style={{ fontSize: 14, fontWeight: 700, color: GREEN }}>₹</span>
+            <span style={{ fontSize: 14, fontWeight: 700, color: '#10B981' }}>₹</span>
             <AnimatedNumber value={budget ? budget.safeToday : 0} duration={900} style={{ fontSize: 64, fontWeight: 800, color: GREEN, letterSpacing: '-0.04em', lineHeight: 1 }} />
           </div>
           <p style={{ fontSize: 13, color: `${GREEN}99`, marginTop: 8, fontWeight: 500 }}>₹{budget ? budget.availableForMonth.toLocaleString('en-IN') : 0} available this month</p>
 
           {/* Spend velocity bar */}
           <div style={{ marginTop: 20, background: `${GREEN}20`, borderRadius: 8, height: 6, overflow: 'hidden' }}>
-            <div style={{ width: '94%', height: '100%', background: GREEN, borderRadius: 8, animation: 'growBar 1s ease' }} />
+            <div style={{ width: '94%', height: '100%', background: '#10B981', borderRadius: 8, animation: 'growBar 1s ease' }} />
           </div>
-          <p style={{ fontSize: 11, color: `${GREEN}88`, marginTop: 6, fontWeight: 500 }}>11:42 PM · 94% of day elapsed</p>
+          <p style={{ fontSize: 11, color: subTextColor, marginTop: 6, fontWeight: 500 }}>11:42 PM · 94% of day elapsed</p>
         </div>
       </div>
 
@@ -111,47 +135,47 @@ const PulseTab = ({ userName }) => {
         <button
           className="glow-button-white"
           onClick={() => setShowBreakdown(!showBreakdown)}
-          style={{ width: '100%', background: '#fff', border: '1px solid #E5E7EB', borderRadius: 16, padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
-          <span style={{ fontWeight: 700, fontSize: 14, color: '#111827' }}>Why exactly ₹{budget ? budget.safeToday : 0}?</span>
-          <ChevronRight size={16} color="#9CA3AF" style={{ transform: showBreakdown ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }} />
+          style={{ width: '100%', background: cardBg, border: `1px solid ${borderColor}`, borderRadius: 16, padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
+          <span style={{ fontWeight: 700, fontSize: 14, color: textColor }}>Why exactly ₹{budget ? budget.safeToday : 0}?</span>
+          <ChevronRight size={16} color={subTextColor} style={{ transform: showBreakdown ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }} />
         </button>
 
         {showBreakdown && budget && (
-          <div style={{ background: '#fff', borderRadius: '0 0 16px 16px', border: '1px solid #E5E7EB', borderTop: 'none', padding: '0 20px 20px', animation: 'fadeDown 0.2s ease' }}>
-            <div style={{ borderTop: '1px solid #F3F4F6', paddingTop: 16 }}>
+          <div style={{ background: cardBg, borderRadius: '0 0 16px 16px', border: `1px solid ${borderColor}`, borderTop: 'none', padding: '0 20px 20px', animation: 'fadeDown 0.2s ease' }}>
+            <div style={{ borderTop: `1px solid ${borderColor}`, paddingTop: 16 }}>
               {/* Phase 1 */}
-              <p style={{ fontSize: 10, fontWeight: 700, color: '#9CA3AF', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 10 }}>Step 1 — Monthly Available</p>
+              <p style={{ fontSize: 10, fontWeight: 700, color: subTextColor, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 10 }}>Step 1 — Monthly Available</p>
               {[
-                { label: 'Monthly Income', value: `₹${budget.monthlyIncome.toLocaleString('en-IN')}`, color: '#111827', indent: false },
-                { label: 'Fixed Expenses (Rent, EMI)', value: `− ₹${budget.fixedExpenses.toLocaleString('en-IN')}`, color: '#DC2626', indent: true },
-                { label: 'Subscriptions', value: `− ₹${budget.subsSpend.toLocaleString('en-IN')}`, color: '#DC2626', indent: true },
-                { label: 'Emergency Buffer', value: `− ₹${budget.emergencyBuffer.toLocaleString('en-IN')}`, color: '#D97706', indent: true },
-                ...(budget.goals || []).map(g => ({ label: `Goal: ${g.name}`, value: `− ₹${g.target.toLocaleString('en-IN')}`, color: '#D97706', indent: true }))
+                { label: 'Monthly Income', value: `₹${budget.monthlyIncome.toLocaleString('en-IN')}`, color: textColor, indent: false },
+                { label: 'Fixed Expenses (Rent, EMI)', value: `− ₹${budget.fixedExpenses.toLocaleString('en-IN')}`, color: '#EF4444', indent: true },
+                { label: 'Subscriptions', value: `− ₹${budget.subsSpend.toLocaleString('en-IN')}`, color: '#EF4444', indent: true },
+                { label: 'Emergency Buffer', value: `− ₹${budget.emergencyBuffer.toLocaleString('en-IN')}`, color: '#F59E0B', indent: true },
+                ...(budget.goals || []).map(g => ({ label: `Goal: ${g.name}`, value: `− ₹${g.target.toLocaleString('en-IN')}`, color: '#F59E0B', indent: true }))
               ].map((row, i) => (
-                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 0', borderLeft: row.indent ? `3px solid ${row.color}22` : 'none', paddingLeft: row.indent ? 12 : 0 }}>
-                  <span style={{ fontSize: 13, color: row.indent ? '#6B7280' : '#111827', fontWeight: row.indent ? 400 : 600 }}>{row.label}</span>
+                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 0', borderLeft: row.indent ? `3px solid ${borderColor}` : 'none', paddingLeft: row.indent ? 12 : 0 }}>
+                  <span style={{ fontSize: 13, color: row.indent ? subTextColor : textColor, fontWeight: row.indent ? 400 : 600 }}>{row.label}</span>
                   <span style={{ fontSize: 13, fontWeight: 600, color: row.color, fontVariantNumeric: 'tabular-nums' }}>{row.value}</span>
                 </div>
               ))}
-              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0', borderTop: '1px dashed #E5E7EB', marginTop: 4 }}>
-                <span style={{ fontSize: 13, fontWeight: 700, color: '#111827' }}>Available for Month</span>
-                <span style={{ fontSize: 13, fontWeight: 700, color: GREEN, fontVariantNumeric: 'tabular-nums' }}>₹{budget.availableForMonth.toLocaleString('en-IN')}</span>
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0', borderTop: `1px dashed ${borderColor}`, marginTop: 4 }}>
+                <span style={{ fontSize: 13, fontWeight: 700, color: textColor }}>Available for Month</span>
+                <span style={{ fontSize: 13, fontWeight: 700, color: '#10B981', fontVariantNumeric: 'tabular-nums' }}>₹{budget.availableForMonth.toLocaleString('en-IN')}</span>
               </div>
               {/* Phase 2 */}
-              <p style={{ fontSize: 10, fontWeight: 700, color: '#9CA3AF', letterSpacing: '0.1em', textTransform: 'uppercase', marginTop: 12, marginBottom: 10 }}>Step 2 — Daily Limit</p>
+              <p style={{ fontSize: 10, fontWeight: 700, color: subTextColor, letterSpacing: '0.1em', textTransform: 'uppercase', marginTop: 12, marginBottom: 10 }}>Step 2 — Daily Limit</p>
               {[
-                { label: 'Days in Month Remaining', value: `${budget.daysRemaining} remaining`, color: '#111827', indent: false },
-                { label: 'Base Daily Limit', value: `₹${budget.baseDailyLimit.toLocaleString('en-IN')}`, color: '#6B7280', indent: true },
-                { label: 'Weekend AI Adjustment', value: `− ₹${Math.abs(budget.aiAdjustment).toLocaleString('en-IN')}`, color: '#DC2626', indent: true },
+                { label: 'Days in Month Remaining', value: `${budget.daysRemaining} remaining`, color: textColor, indent: false },
+                { label: 'Base Daily Limit', value: `₹${budget.baseDailyLimit.toLocaleString('en-IN')}`, color: subTextColor, indent: true },
+                { label: 'Weekend AI Adjustment', value: `− ₹${Math.abs(budget.aiAdjustment).toLocaleString('en-IN')}`, color: '#EF4444', indent: true },
               ].map((row, i) => (
-                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 0', borderLeft: row.indent ? '3px solid #E5E7EB' : 'none', paddingLeft: row.indent ? 12 : 0 }}>
-                  <span style={{ fontSize: 13, color: row.indent ? '#6B7280' : '#111827', fontWeight: row.indent ? 400 : 600 }}>{row.label}</span>
+                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 0', borderLeft: row.indent ? `3px solid ${borderColor}` : 'none', paddingLeft: row.indent ? 12 : 0 }}>
+                  <span style={{ fontSize: 13, color: row.indent ? subTextColor : textColor, fontWeight: row.indent ? 400 : 600 }}>{row.label}</span>
                   <span style={{ fontSize: 13, fontWeight: 600, color: row.color, fontVariantNumeric: 'tabular-nums' }}>{row.value}</span>
                 </div>
               ))}
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 16px', background: GREEN_TINT, borderRadius: 10, marginTop: 8 }}>
-                <span style={{ fontSize: 14, fontWeight: 800, color: GREEN }}>Safe Today</span>
-                <span style={{ fontSize: 14, fontWeight: 800, color: GREEN, fontVariantNumeric: 'tabular-nums' }}>₹{budget.safeToday.toLocaleString('en-IN')}</span>
+                <span style={{ fontSize: 14, fontWeight: 800, color: '#10B981' }}>Safe Today</span>
+                <span style={{ fontSize: 14, fontWeight: 800, color: '#10B981', fontVariantNumeric: 'tabular-nums' }}>₹{budget.safeToday.toLocaleString('en-IN')}</span>
               </div>
             </div>
           </div>
@@ -202,38 +226,38 @@ const PulseTab = ({ userName }) => {
 
       {/* Category Accordions */}
       <div style={{ padding: '20px 24px 120px' }}>
-        <p style={{ fontSize: 11, fontWeight: 700, color: '#9CA3AF', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 14 }}>Spend Specifics</p>
+        <p style={{ fontSize: 11, fontWeight: 700, color: subTextColor, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 14 }}>Spend Specifics</p>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {detailedCategories.map((cat, i) => (
-            <div key={i} style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: 16, overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
+          {(detailedCategories || []).map((cat, i) => (
+            <div key={i} style={{ background: cardBg, border: `1px solid ${borderColor}`, borderRadius: 16, overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
               <button
                 onClick={() => setExpandedCategory(expandedCategory === i ? null : i)}
                 style={{ width: '100%', background: 'transparent', border: 'none', padding: '16px', display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer', textAlign: 'left' }}
               >
-                <div style={{ width: 40, height: 40, borderRadius: '50%', background: cat.warning ? AMBER_TINT : '#F3F4F6', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, flexShrink: 0 }}>{cat.emoji}</div>
+                <div style={{ width: 40, height: 40, borderRadius: '50%', background: cat.warning ? 'rgba(217, 119, 6, 0.1)' : '#F3F4F6', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, flexShrink: 0 }}>{cat.emoji}</div>
                 <div style={{ flex: 1 }}>
-                  <p style={{ fontSize: 14, fontWeight: 600, color: '#111827' }}>{cat.name}</p>
+                  <p style={{ fontSize: 14, fontWeight: 600, color: textColor }}>{cat.name}</p>
                   <div style={{ height: 4, background: '#F3F4F6', borderRadius: 2, overflow: 'hidden', marginTop: 6, width: '80%' }}>
-                    <div style={{ width: `${cat.pct}%`, height: '100%', background: cat.warning ? AMBER : GREEN, borderRadius: 2 }} />
+                    <div style={{ width: `${cat.pct}%`, height: '100%', background: cat.warning ? AMBER : '#10B981', borderRadius: 2 }} />
                   </div>
                 </div>
                 <div style={{ textAlign: 'right' }}>
-                  <p style={{ fontSize: 15, fontWeight: 700, color: '#111827', fontVariantNumeric: 'tabular-nums' }}>₹{cat.amount.toLocaleString('en-IN')}</p>
+                  <p style={{ fontSize: 15, fontWeight: 700, color: textColor, fontVariantNumeric: 'tabular-nums' }}>₹{cat.amount.toLocaleString('en-IN')}</p>
                   {cat.warning && <p style={{ fontSize: 10, color: AMBER, fontWeight: 600, marginTop: 2 }}>High</p>}
                 </div>
-                <ChevronRight size={18} color="#9CA3AF" style={{ transform: expandedCategory === i ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.2s', marginLeft: 4 }} />
+                <ChevronRight size={18} color={subTextColor} style={{ transform: expandedCategory === i ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.2s', marginLeft: 4 }} />
               </button>
               
               {expandedCategory === i && (
-                <div style={{ padding: '0 16px 16px', background: '#F9FAFB', borderTop: '1px solid #E5E7EB', animation: 'fadeDown 0.2s ease' }}>
+                <div style={{ padding: '0 16px 16px', background: '#F9FAFB', borderTop: `1px solid ${borderColor}`, animation: 'fadeDown 0.2s ease' }}>
                   <div style={{ paddingTop: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
-                    {cat.shops.map((shop, j) => (
+                    {(cat.shops || []).map((shop, j) => (
                       <div key={j} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <div>
                           <p style={{ fontSize: 13, fontWeight: 600, color: '#374151' }}>{shop.name}</p>
-                          <p style={{ fontSize: 11, color: '#9CA3AF', marginTop: 2 }}>{shop.date}</p>
+                          <p style={{ fontSize: 11, color: subTextColor, marginTop: 2 }}>{shop.date}</p>
                         </div>
-                        <span style={{ fontSize: 13, fontWeight: 600, color: '#111827', fontVariantNumeric: 'tabular-nums' }}>₹{shop.amount.toLocaleString('en-IN')}</span>
+                        <span style={{ fontSize: 13, fontWeight: 600, color: textColor, fontVariantNumeric: 'tabular-nums' }}>₹{shop.amount.toLocaleString('en-IN')}</span>
                       </div>
                     ))}
                   </div>
@@ -256,7 +280,7 @@ const Chip = ({ emoji, label, amount }) => (
 );
 
 // ─── COACH TAB ────────────────────────────────────────────────────────────────
-const CoachTab = ({ userName }) => {
+const CoachTab = ({ userName, onBack }) => {
   const AMBER = '#B45309';
   const AMBER_TINT = '#FFFBEB';
   const GREEN = '#1A4731';
@@ -296,11 +320,17 @@ const CoachTab = ({ userName }) => {
 
   const { healthScore, opps, taxOpps, selfCompare } = coachData;
 
+  const textColor = '#111827';
+  const subTextColor = '#6B7280';
+  const cardBg = '#fff';
+  const borderColor = '#E5E7EB';
+
   return (
-    <div style={{ animation: 'fadeUp 0.3s ease' }}>
-      <header style={{ padding: '28px 24px 16px' }}>
-        <p style={{ fontSize: 12, color: '#9CA3AF', fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 4 }}>Good evening, {userName}</p>
-        <h1 style={{ fontSize: 22, fontWeight: 800, color: '#111827', letterSpacing: '-0.02em' }}>Your Coach</h1>
+    <div style={{ animation: 'fadeUp 0.3s ease', position: 'relative' }}>
+      <header style={{ padding: '70px 24px 16px' }}>
+        <BackButton onClick={onBack} color={textColor} />
+        <p style={{ fontSize: 12, color: subTextColor, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 4 }}>Good evening, {userName}</p>
+        <h1 style={{ fontSize: 22, fontWeight: 800, color: textColor, letterSpacing: '-0.02em' }}>Your Coach</h1>
       </header>
 
       {/* Health Score (Moved to top) */}
@@ -312,16 +342,16 @@ const CoachTab = ({ userName }) => {
             <span style={{ fontSize: 14, color: '#9CA3AF', fontWeight: 500 }}>/100</span>
           </div>
         </div>
-        <p style={{ fontSize: 12, color: '#6B7280', marginBottom: 16 }}>Financial Health Score · 3 factors dragging you down</p>
+        <p style={{ fontSize: 12, color: subTextColor, marginBottom: 16 }}>Financial Health Score · 3 factors dragging you down</p>
         <div style={{ display: 'flex', justifyContent: 'center', gap: 10 }}>
           {[
-            { icon: <ShieldAlert size={14} color="#DC2626" />, bg: '#FEF2F2', label: 'Sub leaks' },
-            { icon: <Activity size={14} color="#D97706" />, bg: '#FFFBEB', label: 'Food spike' },
-            { icon: <TrendingDown size={14} color="#D97706" />, bg: '#FFFBEB', label: 'Low savings' },
+            { icon: <ShieldAlert size={14} color="#EF4444" />, bg: '#FEF2F2', label: 'Sub leaks' },
+            { icon: <Activity size={14} color="#F59E0B" />, bg: '#FFFBEB', label: 'Food spike' },
+            { icon: <TrendingDown size={14} color="#F59E0B" />, bg: '#FFFBEB', label: 'Low savings' },
           ].map((item, i) => (
             <div key={i} style={{ background: item.bg, borderRadius: 12, padding: '8px 12px', display: 'flex', alignItems: 'center', gap: 6 }}>
               {item.icon}
-              <span style={{ fontSize: 11, fontWeight: 600, color: '#6B7280' }}>{item.label}</span>
+              <span style={{ fontSize: 11, fontWeight: 600, color: subTextColor }}>{item.label}</span>
             </div>
           ))}
         </div>
@@ -337,13 +367,13 @@ const CoachTab = ({ userName }) => {
             </div>
             <div style={{ flex: 1 }}>
               <p style={{ fontSize: 14, lineHeight: 1.6, color: '#92400E', fontWeight: 400 }}>
-                Your food spend this week is <strong style={{ fontWeight: 700 }}>₹1,840</strong>. Cook twice more and save ₹600 — that's your Goa trip in <strong style={{ fontWeight: 700 }}>10 days</strong>.
+                {opps[0]?.sub || "Calculating your next move..."}. Act on these quick wins to reach your goals faster.
               </p>
               
-              <div style={{ marginTop: 16, paddingTop: 16, borderTop: `1px dashed ${AMBER}40` }}>
+              <div style={{ marginTop: 16, paddingTop: 16, borderTop: `1px dashed ${AMBER + '40'}` }}>
                 <p style={{ fontSize: 12, fontWeight: 700, color: '#92400E', marginBottom: 10 }}>Quick Wins:</p>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  {opps.map((opp, i) => (
+                  {(opps || []).map((opp, i) => (
                     <div key={i} style={{ background: 'rgba(255,255,255,0.6)', borderRadius: 12, padding: '10px 12px', display: 'flex', alignItems: 'center', gap: 10 }}>
                       <div style={{ fontSize: 18, flexShrink: 0 }}>{opp.emoji}</div>
                       <div style={{ flex: 1, minWidth: 0 }}>
@@ -371,15 +401,15 @@ const CoachTab = ({ userName }) => {
       <div style={{ padding: '24px 24px 0' }}>
         <p style={{ fontSize: 11, fontWeight: 700, color: '#9CA3AF', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 14 }}>Tax Optimization</p>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {taxOpps.map((opp, i) => (
-            <div key={i} style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: 16, padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12, boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
+          {(taxOpps || []).map((opp, i) => (
+            <div key={i} style={{ background: cardBg, border: `1px solid ${borderColor}`, borderRadius: 16, padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12, boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
               <div style={{ width: 40, height: 40, borderRadius: '50%', background: '#F3F4F6', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, flexShrink: 0 }}>{opp.icon}</div>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <p style={{ fontSize: 13, fontWeight: 600, color: '#111827', marginBottom: 2 }}>{opp.title}</p>
-                <p style={{ fontSize: 11, color: '#9CA3AF' }}>{opp.desc}</p>
-                <p style={{ fontSize: 12, marginTop: 4 }}><span style={{ fontWeight: 700, color: GREEN }}>{opp.save}</span></p>
+                <p style={{ fontSize: 13, fontWeight: 600, color: textColor, marginBottom: 2 }}>{opp.title}</p>
+                <p style={{ fontSize: 11, color: subTextColor }}>{opp.desc}</p>
+                <p style={{ fontSize: 12, marginTop: 4 }}><span style={{ fontWeight: 700, color: '#10B981' }}>{opp.save}</span></p>
               </div>
-              <ChevronRight size={14} color="#D1D5DB" />
+              <ChevronRight size={14} color={subTextColor} />
             </div>
           ))}
         </div>
@@ -389,7 +419,7 @@ const CoachTab = ({ userName }) => {
       <div style={{ padding: '24px 24px 120px' }}>
         <p style={{ fontSize: 11, fontWeight: 700, color: '#9CA3AF', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 14 }}>vs Your Past 30 Days</p>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          {selfCompare.map((b, i) => {
+          {(selfCompare || []).map((b, i) => {
             const max = Math.max(b.current, b.past);
             const curPct = (b.current / max) * 100;
             const pastPct = (b.past / max) * 100;
@@ -408,7 +438,7 @@ const CoachTab = ({ userName }) => {
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <div style={{ height: 8, width: `${pastPct}%`, background: '#E5E7EB', borderRadius: 4, animation: 'growBar 1s ease' }} />
-                    <span style={{ fontSize: 10, color: '#9CA3AF', fontVariantNumeric: 'tabular-nums' }}>₹{(b.past/1000).toFixed(1)}k</span>
+                    <span style={{ fontSize: 10, color: subTextColor, fontVariantNumeric: 'tabular-nums' }}>₹{(b.past/1000).toFixed(1)}k</span>
                   </div>
                 </div>
               </div>
@@ -421,7 +451,7 @@ const CoachTab = ({ userName }) => {
 };
 
 // ─── ENGINE TAB ───────────────────────────────────────────────────────────────
-const EngineTab = ({ userName }) => {
+const EngineTab = ({ userName, onBack }) => {
   const INDIGO = '#4338CA';
   const INDIGO_TINT = '#EEF2FF';
   const GREEN = '#1A4731';
@@ -504,28 +534,35 @@ const EngineTab = ({ userName }) => {
           ...(session?.user ? { 'x-user-id': session.user.id } : {})
         };
 
-        const res = await fetch('/api/upload-statement', {
-          method: 'POST',
-          headers,
-          body: JSON.stringify({
-            imageBase64: base64String,
-            mimeType: file.type
-          })
-        });
-        const data = await res.json();
-        if (data.success) {
-          alert(`Success! Imported ${data.count} transactions from screenshot.`);
-          fetchEngineData();
-        } else {
+        try {
+          const res = await fetch('/api/upload-statement', {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({
+              imageBase64: base64String,
+              mimeType: file.type
+            })
+          });
+          const data = await res.json();
+          if (data.success) {
+            alert(`Success! Imported ${data.count} transactions from screenshot.`);
+            fetchEngineData();
+          } else {
+            alert('Failed to process screenshot.');
+          }
+        } catch (err) {
+          console.error(err);
           alert('Failed to process screenshot.');
+        } finally {
+          setIsUploading(false);
         }
       };
       reader.readAsDataURL(file);
     } catch (e) {
       console.error(e);
       alert('Error uploading screenshot');
+      setIsUploading(false);
     }
-    setIsUploading(false);
   };
 
   if (!engineData) return <div style={{ padding: 24 }}>Loading Engine...</div>;
@@ -591,7 +628,7 @@ const EngineTab = ({ userName }) => {
     setIsUpdating(false);
   };
 
-  const rules = engineData.rules.map(r => ({
+  const rules = (engineData.rules || []).map(r => ({
     ...r,
     icon: r.icon === 'Zap' ? <Zap size={15} color={INDIGO} /> :
           r.icon === 'Target' ? <Target size={15} color={INDIGO} /> :
@@ -599,11 +636,19 @@ const EngineTab = ({ userName }) => {
   }));
 
   const tickerData = engineData.sweeps && engineData.sweeps.length > 0 ? engineData.sweeps : tickerItems;
+  const textColor = '#111827';
+  const subTextColor = '#6B7280';
+  const cardBg = '#fff';
+  const borderColor = '#E5E7EB';
+
   return (
-    <div style={{ animation: 'fadeUp 0.3s ease' }}>
-      <header style={{ padding: '28px 24px 16px' }}>
-        <p style={{ fontSize: 12, color: '#9CA3AF', fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 4 }}>Good evening, {userName}</p>
-        <h1 style={{ fontSize: 22, fontWeight: 800, color: '#111827', letterSpacing: '-0.02em' }}>Your Money Engine</h1>
+    <div style={{ animation: 'fadeUp 0.3s ease', position: 'relative' }}>
+      <header style={{ padding: '70px 24px 8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <BackButton onClick={onBack} color={textColor} />
+        <div>
+          <p style={{ fontSize: 12, color: subTextColor, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 4 }}>Good evening, {userName}</p>
+          <h1 style={{ fontSize: 22, fontWeight: 800, color: textColor, letterSpacing: '-0.02em' }}>Your Money Engine</h1>
+        </div>
       </header>
 
       {/* Engine Status */}
@@ -637,19 +682,19 @@ const EngineTab = ({ userName }) => {
         <p style={{ fontSize: 11, fontWeight: 700, color: '#9CA3AF', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 14 }}>What The Engine Is Doing</p>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {rules.map((rule, i) => (
-            <div key={i} style={{ background: '#fff', border: '1px solid #E5E7EB', borderLeft: `3px solid ${INDIGO}`, borderRadius: 16, padding: '16px 16px 16px 14px', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
+            <div key={i} style={{ background: cardBg, border: `1px solid ${borderColor}`, borderLeft: `3px solid ${INDIGO}`, borderRadius: 16, padding: '16px 16px 16px 14px', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <div style={{ width: 30, height: 30, borderRadius: 8, background: INDIGO_TINT, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{rule.icon}</div>
-                  <span style={{ fontSize: 13, fontWeight: 700, color: '#111827' }}>{rule.name}</span>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: textColor }}>{rule.name}</span>
                 </div>
                 {/* Toggle */}
                 <div style={{ width: 36, height: 20, background: INDIGO, borderRadius: 10, position: 'relative', flexShrink: 0 }}>
                   <div style={{ width: 16, height: 16, background: '#fff', borderRadius: '50%', position: 'absolute', top: 2, right: 2, boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }} />
                 </div>
               </div>
-              <p style={{ fontSize: 12, color: '#6B7280', marginBottom: 8, paddingLeft: 38, lineHeight: 1.5 }}>{rule.desc}</p>
-              <p style={{ fontSize: 11, color: '#9CA3AF', paddingLeft: 38 }}>Saved this month: <span style={{ fontWeight: 700, color: INDIGO, fontVariantNumeric: 'tabular-nums' }}>{rule.saved}</span></p>
+              <p style={{ fontSize: 12, color: subTextColor, marginBottom: 8, paddingLeft: 38, lineHeight: 1.5 }}>{rule.desc}</p>
+              <p style={{ fontSize: 11, color: subTextColor, paddingLeft: 38 }}>Saved this month: <span style={{ fontWeight: 700, color: INDIGO, fontVariantNumeric: 'tabular-nums' }}>{rule.saved}</span></p>
             </div>
           ))}
           <button style={{ width: '100%', padding: '12px', background: 'transparent', border: `1px dashed ${INDIGO}55`, color: INDIGO, borderRadius: 100, fontWeight: 600, fontSize: 13, cursor: 'pointer', marginTop: 4 }}>+ Add Rule</button>
@@ -659,7 +704,7 @@ const EngineTab = ({ userName }) => {
       {/* Portfolio Snapshot */}
       <div style={{ padding: '24px 24px 24px' }}>
         <p style={{ fontSize: 11, fontWeight: 700, color: '#9CA3AF', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 14 }}>Portfolio Snapshot</p>
-        <div style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: 20, padding: '20px', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
+        <div style={{ background: cardBg, border: `1px solid ${borderColor}`, borderRadius: 20, padding: '20px', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
           {/* Area chart */}
           <div style={{ height: 72, marginBottom: 16 }}>
             <svg viewBox="0 0 300 60" preserveAspectRatio="none" style={{ width: '100%', height: '100%' }}>
@@ -676,21 +721,21 @@ const EngineTab = ({ userName }) => {
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
             <div>
-              <p style={{ fontSize: 11, color: '#9CA3AF', fontWeight: 600, marginBottom: 2 }}>Total Invested</p>
+              <p style={{ fontSize: 11, color: subTextColor, fontWeight: 600, marginBottom: 2 }}>Total Invested</p>
               <AnimatedNumber value={engineData.portfolio?.totalInvested || 0} prefix="₹" duration={1200} style={{ fontSize: 26, fontWeight: 800, color: INDIGO, fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.02em' }} />
             </div>
             <div style={{ textAlign: 'right' }}>
-              <p style={{ fontSize: 11, color: '#9CA3AF', fontWeight: 600, marginBottom: 2 }}>Returns</p>
+              <p style={{ fontSize: 11, color: subTextColor, fontWeight: 600, marginBottom: 2 }}>Returns</p>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'flex-end' }}>
-                <span style={{ fontSize: 14, fontWeight: 700, color: '#16A34A', fontVariantNumeric: 'tabular-nums' }}>+₹{engineData.portfolio?.returns || 0}</span>
-                <span style={{ background: '#D1FAE5', color: '#16A34A', fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 100 }}>+{engineData.portfolio?.returnsPct || 0}%</span>
+                <span style={{ fontSize: 14, fontWeight: 700, color: '#10B981', fontVariantNumeric: 'tabular-nums' }}>+₹{engineData.portfolio?.returns || 0}</span>
+                <span style={{ background: '#D1FAE5', color: '#10B981', fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 100 }}>+{engineData.portfolio?.returnsPct || 0}%</span>
               </div>
             </div>
           </div>
-          <div style={{ marginTop: 16, paddingTop: 14, borderTop: '1px solid #F3F4F6' }}>
+          <div style={{ marginTop: 16, paddingTop: 14, borderTop: `1px solid ${borderColor}` }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <CheckCircle size={13} color="#16A34A" />
-              <p style={{ fontSize: 11, color: '#9CA3AF', lineHeight: 1.5 }}>Auto-invested into Nifty 50 Index Fund · SEBI regulated</p>
+              <CheckCircle size={13} color="#10B981" />
+              <p style={{ fontSize: 11, color: subTextColor, lineHeight: 1.5 }}>Auto-invested into Nifty 50 Index Fund · SEBI regulated</p>
             </div>
           </div>
         </div>
@@ -699,7 +744,7 @@ const EngineTab = ({ userName }) => {
       {/* Connected Bank Accounts (Setu AA) */}
       <div style={{ padding: '0 24px 120px' }}>
         <p style={{ fontSize: 11, fontWeight: 700, color: '#9CA3AF', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 14 }}>Connected Bank Accounts</p>
-        <div style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: 20, padding: '20px', color: '#111827', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
+        <div style={{ background: cardBg, border: `1px solid ${borderColor}`, borderRadius: 20, padding: '20px', color: textColor, boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
           {engineData.bankLinked ? (
             <div>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
@@ -709,7 +754,7 @@ const EngineTab = ({ userName }) => {
                   </div>
                   <div>
                     <p style={{ fontSize: 14, fontWeight: 700 }}>HDFC Bank</p>
-                    <p style={{ fontSize: 12, color: '#9CA3AF' }}>Linked via Setu AA</p>
+                    <p style={{ fontSize: 12, color: subTextColor }}>Linked via Setu AA</p>
                   </div>
                 </div>
                 <span style={{ fontSize: 12, color: '#10B981', fontWeight: 600, background: 'rgba(16, 185, 129, 0.1)', padding: '4px 10px', borderRadius: 100 }}>Active</span>
@@ -732,7 +777,7 @@ const EngineTab = ({ userName }) => {
                   setTimeout(() => setSyncResult(null), 3000);
                 }}
                 disabled={isSyncing}
-                style={{ width: '100%', padding: '12px', background: '#F3F4F6', color: '#374151', border: 'none', borderRadius: 12, fontSize: 13, fontWeight: 600, cursor: isSyncing ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+                style={{ width: '100%', padding: '12px', background: '#F3F4F6', color: textColor, border: 'none', borderRadius: 12, fontSize: 13, fontWeight: 600, cursor: isSyncing ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
               >
                 <Activity size={14} /> {isSyncing ? 'Syncing...' : 'Sync Latest Transactions'}
               </button>
@@ -748,14 +793,14 @@ const EngineTab = ({ userName }) => {
             </div>
           ) : (
             <div style={{ padding: '40px 20px', textAlign: 'center' }}>
-               <p style={{ fontSize: 14, color: '#6B7280', marginBottom: 16 }}>
+               <p style={{ fontSize: 14, color: subTextColor, marginBottom: 16 }}>
                  Your bank is successfully linked.
                </p>
             </div>
           )}
 
-          <div style={{ marginTop: 24, paddingTop: 20, borderTop: '1px solid #F3F4F6' }}>
-            <p style={{ fontSize: 13, color: '#6B7280', marginBottom: 12, lineHeight: 1.5 }}>
+          <div style={{ marginTop: 24, paddingTop: 20, borderTop: `1px solid ${borderColor}` }}>
+            <p style={{ fontSize: 13, color: subTextColor, marginBottom: 12, lineHeight: 1.5 }}>
               Update Financial Profile (Income & Fixed Expenses)
             </p>
             <div style={{ display: 'flex', gap: 12, marginBottom: 12 }}>
@@ -764,28 +809,28 @@ const EngineTab = ({ userName }) => {
                 placeholder="Monthly Income (₹)" 
                 value={newIncome}
                 onChange={e => setNewIncome(e.target.value)}
-                style={{ flex: 1, padding: '12px 14px', background: '#F9FAFB', border: '1px solid #E5E7EB', borderRadius: 12, color: '#111827', fontSize: 14, outline: 'none' }}
+                style={{ flex: 1, padding: '12px 14px', background: '#F9FAFB', border: `1px solid ${borderColor}`, borderRadius: 12, color: textColor, fontSize: 14, outline: 'none' }}
               />
               <input 
                 type="number" 
                 placeholder="Fixed Expenses (₹)" 
                 value={newRent}
                 onChange={e => setNewRent(e.target.value)}
-                style={{ flex: 1, padding: '12px 14px', background: '#F9FAFB', border: '1px solid #E5E7EB', borderRadius: 12, color: '#111827', fontSize: 14, outline: 'none' }}
+                style={{ flex: 1, padding: '12px 14px', background: '#F9FAFB', border: `1px solid ${borderColor}`, borderRadius: 12, color: textColor, fontSize: 14, outline: 'none' }}
               />
             </div>
             <button 
               className="glow-button-white"
               onClick={handleUpdateProfile}
               disabled={isUpdating || !newIncome || !newRent}
-              style={{ width: '100%', padding: '14px', background: '#F3F4F6', color: '#374151', border: 'none', borderRadius: 12, fontSize: 14, fontWeight: 700, cursor: isUpdating ? 'not-allowed' : 'pointer', opacity: (!newIncome || !newRent) ? 0.5 : 1 }}
+              style={{ width: '100%', padding: '14px', background: '#F3F4F6', color: textColor, border: 'none', borderRadius: 12, fontSize: 14, fontWeight: 700, cursor: isUpdating ? 'not-allowed' : 'pointer', opacity: (!newIncome || !newRent) ? 0.5 : 1 }}
             >
               {isUpdating ? 'Updating...' : 'Update Profile'}
             </button>
           </div>
 
-          <div style={{ marginTop: 24, paddingTop: 20, borderTop: '1px solid #F3F4F6' }}>
-            <p style={{ fontSize: 13, color: '#6B7280', marginBottom: 12, lineHeight: 1.5 }}>
+          <div style={{ marginTop: 24, paddingTop: 20, borderTop: `1px solid ${borderColor}` }}>
+            <p style={{ fontSize: 13, color: subTextColor, marginBottom: 12, lineHeight: 1.5 }}>
               Test the Nightly Sweep! The Engine checks your daily transactions, rounds them up, and auto-invests the difference.
             </p>
             <button 
@@ -804,7 +849,7 @@ const EngineTab = ({ userName }) => {
 };
 
 // ─── LOGIN SCREEN ─────────────────────────────────────────────────────────────
-const LoginScreen = ({ onLogin }) => {
+const LoginScreen = ({ onLogin, onBack }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
@@ -818,6 +863,9 @@ const LoginScreen = ({ onLogin }) => {
     
     // Developer bypass for rate limits
     if (email === 'dev@gmail.com' && (password === 'dev135' || password === 'dev')) {
+      const devId = `dev_${email}_${name || 'Developer'}`;
+      localStorage.setItem('finotsa_dev_id', devId);
+      localStorage.setItem('finotsa_dev_name', name || 'Developer');
       onLogin(name || 'Developer');
       return;
     }
@@ -856,7 +904,8 @@ const LoginScreen = ({ onLogin }) => {
   };
 
   return (
-    <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: '#0F3122', color: '#fff', padding: 24, animation: 'fadeUp 0.5s ease' }}>
+    <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: '#0F3122', color: '#fff', padding: 24, animation: 'fadeUp 0.5s ease', position: 'relative' }}>
+      <BackButton onClick={onBack} color="#fff" />
       <div style={{ width: 64, height: 64, borderRadius: 20, background: '#1A4731', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 32, boxShadow: '0 4px 20px rgba(0,0,0,0.2)' }}>
         <Zap size={32} color="#10B981" />
       </div>
@@ -898,9 +947,24 @@ const LoginScreen = ({ onLogin }) => {
 };
 
 // ─── ONBOARDING SCREEN ────────────────────────────────────────────────────────
-const OnboardingScreen = ({ onLinked }) => {
+const OnboardingScreen = ({ onLinked, onBack }) => {
+  const [step, setStep] = useState('choice'); // 'choice', 'manual', 'upload'
+  const [manualData, setManualData] = useState({ bankName: '', accountNum: '', ifsc: '' });
+  const [statementData, setStatementData] = useState({ 
+    balanceImg: null, 
+    transactionImgs: [], 
+    monthlyIncome: '',
+    fixedExpenses: '',
+    lifestyleSpend: '', 
+    rewardName: '',
+    rewardValue: '',
+    emergencyGoal: '',
+    currentDebt: ''
+  });
   const [isUploading, setIsUploading] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
+  const [currentBalance, setCurrentBalance] = useState(null);
+  const [showReview, setShowReview] = useState(false);
   const GREEN = '#1A4731';
   const INDIGO = '#4338CA';
 
@@ -939,6 +1003,30 @@ const OnboardingScreen = ({ onLinked }) => {
     } catch(e) { console.error(e); }
   };
 
+  const handleDemoMode = async () => {
+    setIsVerifying(true);
+    try {
+      const devId = localStorage.getItem('finotsa_dev_id');
+      const { data: { session } } = await supabase.auth.getSession();
+      const headers = { 
+        'Content-Type': 'application/json', 
+        'x-user-id': session?.user?.id || devId || 'default_user'
+      };
+      
+      const res = await fetch('/api/aa/demo', { method: 'POST', headers });
+      if (res.ok) {
+        onLinked();
+      } else {
+        alert('Failed to initialize demo mode');
+      }
+    } catch (e) {
+      console.error(e);
+      alert('Error connecting to demo bank');
+    } finally {
+      setIsVerifying(false);
+    }
+  };
+
   const handleFileUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -948,22 +1036,108 @@ const OnboardingScreen = ({ onLinked }) => {
       const reader = new FileReader();
       reader.onloadend = async () => {
         const base64String = reader.result.split(',')[1];
+        const devId = localStorage.getItem('finotsa_dev_id');
         const { data: { session } } = await supabase.auth.getSession();
-        const headers = { 'Content-Type': 'application/json', ...(session?.user ? { 'x-user-id': session.user.id } : {}) };
+        const headers = { 
+          'Content-Type': 'application/json', 
+          'x-user-id': session?.user?.id || devId || 'default_user'
+        };
 
+        try {
+          const res = await fetch('/api/upload-statement', {
+            method: 'POST', headers,
+            body: JSON.stringify({ imageBase64: base64String, mimeType: file.type })
+          });
+          const data = await res.json();
+          if (data.success) {
+            if (data.currentBalance) setCurrentBalance(data.currentBalance);
+            setShowReview(true);
+          } else { alert('Failed to process screenshot.'); }
+        } catch (err) {
+          console.error(err);
+          alert('Failed to process screenshot.');
+        } finally {
+          setIsUploading(false);
+        }
+      };
+      reader.readAsDataURL(file);
+    } catch (e) { 
+      alert('Error uploading screenshot'); 
+      setIsUploading(false);
+    }
+  };
+
+  const handleFinalize = async () => {
+    const { balanceImg, transactionImgs } = statementData;
+    if (!balanceImg || transactionImgs.length === 0) {
+      alert("Please upload both your bank balance and transaction history screenshots.");
+      return;
+    }
+
+    setIsUploading(true);
+    try {
+      const devId = localStorage.getItem('finotsa_dev_id');
+      const { data: { session } } = await supabase.auth.getSession();
+      const userId = session?.user?.id || devId || 'default_user';
+      const headers = { 'x-user-id': userId };
+
+      // 1. Process all images sequentially
+      const allFiles = [balanceImg, ...transactionImgs];
+      let totalTxs = 0;
+      let balanceFoundTotal = false;
+
+      for (const file of allFiles) {
+        const reader = new FileReader();
+        const fileData = await new Promise((resolve) => {
+          reader.onloadend = () => resolve(reader.result);
+          reader.readAsDataURL(file);
+        });
+
+        const base64String = fileData.split(',')[1];
+        
         const res = await fetch('/api/upload-statement', {
-          method: 'POST', headers,
+          method: 'POST',
+          headers: { ...headers, 'Content-Type': 'application/json' },
           body: JSON.stringify({ imageBase64: base64String, mimeType: file.type })
         });
         const data = await res.json();
         if (data.success) {
-          alert(`Success! Imported ${data.count} transactions.`);
-          onLinked();
-        } else { alert('Failed to process screenshot.'); }
+          totalTxs += data.count || 0;
+          if (data.balanceFound) balanceFoundTotal = true;
+        }
+      }
+
+      // Validation: If AI found absolutely nothing across multiple files, it's likely improper data
+      if (totalTxs === 0 && !balanceFoundTotal) {
+        alert("We couldn't find any bank transactions or a balance in these screenshots. Please ensure you are uploading clear, valid bank statements.");
+        setIsUploading(false);
+        return;
+      }
+
+      // 2. Save profile settings
+      const settings = { 
+        bankLinked: true,
+        monthlyIncome: statementData.monthlyIncome ? Number(statementData.monthlyIncome) : 50000,
+        fixedExpenses: statementData.fixedExpenses ? Number(statementData.fixedExpenses) : 10000,
+        lifestyleSpend: statementData.lifestyleSpend ? Number(statementData.lifestyleSpend) : 15000,
+        emergencyBuffer: statementData.emergencyGoal ? Number(statementData.emergencyGoal) : 100000,
+        debt: statementData.currentDebt ? Number(statementData.currentDebt) : 0
       };
-      reader.readAsDataURL(file);
-    } catch (e) { alert('Error uploading screenshot'); }
-    setIsUploading(false);
+
+      await fetch('/api/user/settings', {
+        method: 'POST',
+        headers: { ...headers, 'Content-Type': 'application/json' },
+        body: JSON.stringify(settings)
+      });
+
+      // 3. Finish onboarding
+      onLinked();
+    } catch (e) {
+      console.error(e);
+      alert("Extraction failed. Please ensure the screenshots are clear.");
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   if (isVerifying) {
@@ -994,7 +1168,11 @@ const OnboardingScreen = ({ onLinked }) => {
   );
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 24, background: '#081A12', position: 'relative', overflow: 'hidden' }}>
+    <div 
+      style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 24, background: '#081A12', position: 'relative', overflow: 'hidden' }}
+    >
+      <BackButton onClick={step === 'choice' ? onBack : () => setStep('choice')} color="#fff" />
+
       {/* Background Decor */}
       <div style={{ position: 'absolute', top: '10%', left: '10%', width: 300, height: 300, background: '#10B981', filter: 'blur(150px)', opacity: 0.1, borderRadius: '50%' }} />
       <div style={{ position: 'absolute', bottom: '10%', right: '10%', width: 400, height: 400, background: '#1A4731', filter: 'blur(150px)', opacity: 0.2, borderRadius: '50%' }} />
@@ -1003,60 +1181,213 @@ const OnboardingScreen = ({ onLinked }) => {
         <Shield size={32} color="#10B981" />
       </div>
       
-      <h1 style={{ fontSize: 32, fontWeight: 900, letterSpacing: '-0.04em', marginBottom: 12, textAlign: 'center', color: '#fff' }}>Connect Your Data</h1>
-      <p style={{ fontSize: 15, color: '#A7F3D0', marginBottom: 80, textAlign: 'center', lineHeight: 1.5, maxWidth: 360, opacity: 0.8 }}>
-        Choose how you want to fuel your financial engine. Real data leads to real growth.
+      <h1 style={{ fontSize: 32, fontWeight: 900, letterSpacing: '-0.04em', marginBottom: 12, textAlign: 'center', color: '#fff' }}>
+        {step === 'manual' ? 'Bank Details' : step === 'upload' ? 'Upload History' : 'Connect Your Data'}
+      </h1>
+      <p style={{ fontSize: 15, color: '#A7F3D0', marginBottom: step === 'choice' ? 80 : 40, textAlign: 'center', lineHeight: 1.5, maxWidth: 360, opacity: 0.8 }}>
+        {step === 'manual' ? 'Enter your account details to sync your balance.' : 
+         step === 'upload' ? 'Upload your screenshots for AI-driven classification.' :
+         'Choose how you want to fuel your financial engine. Real data leads to real growth.'}
       </p>
 
-      <div style={{ width: '100%', maxWidth: 340, display: 'flex', flexDirection: 'column', gap: 60, position: 'relative' }}>
+      <div style={{ width: '100%', maxWidth: 360, display: 'flex', flexDirection: 'column', gap: step === 'choice' ? 60 : 0, position: 'relative' }}>
         
-        {/* Option 1 */}
-        <div style={{ position: 'relative' }}>
-          <GlowingArrow style={{ top: -45, left: -165 }} rotate={-5} />
-          <ChalkText style={{ position: 'absolute', top: -75, left: -380, width: 220, textAlign: 'right' }}>Live data from your real bank</ChalkText>
-          <button 
-            className="glow-button"
-            onClick={handleLinkBank}
-            style={{ width: '100%', padding: '18px', background: '#10B981', color: '#0F3122', border: 'none', borderRadius: 18, fontSize: 16, fontWeight: 800, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}
-          >
-            <Shield size={20} /> Link Real Bank (Setu AA)
-          </button>
-        </div>
+        {step === 'choice' && (
+          <>
+            {/* Option 1 */}
+            <div style={{ position: 'relative' }}>
+              <GlowingArrow style={{ top: -45, left: -165 }} rotate={-5} />
+              <ChalkText style={{ position: 'absolute', top: -75, left: -380, width: 220, textAlign: 'right' }}>Live data from your real bank</ChalkText>
+              <button 
+                className="glow-button"
+                onClick={() => setStep('manual')}
+                style={{ width: '100%', padding: '18px', background: '#10B981', color: '#0F3122', border: 'none', borderRadius: 18, fontSize: 16, fontWeight: 800, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}
+              >
+                <Shield size={20} /> Link Real Bank (Setu AA)
+              </button>
+            </div>
 
-        {/* Option 2 */}
-        <div style={{ position: 'relative' }}>
-          <GlowingArrow style={{ top: -25, right: -165 }} rotate={-5} flip />
-          <ChalkText style={{ position: 'absolute', top: -55, right: -380, width: 220, textAlign: 'left' }}>Just want to see how it works?</ChalkText>
-          <button 
-            className="glow-button-white"
-            onClick={onLinked}
-            style={{ width: '100%', padding: '18px', background: 'rgba(255,255,255,0.05)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 18, fontSize: 16, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, backdropFilter: 'blur(10px)' }}
-          >
-            Explore with Demo Bank
-          </button>
-        </div>
+            {/* Option 2 */}
+            <div style={{ position: 'relative' }}>
+              <GlowingArrow style={{ top: -25, right: -165 }} rotate={-5} flip />
+              <ChalkText style={{ position: 'absolute', top: -55, right: -380, width: 220, textAlign: 'left' }}>Just want to see how it works?</ChalkText>
+              <button 
+                className="glow-button-white"
+                onClick={handleDemoMode}
+                disabled={isVerifying}
+                style={{ width: '100%', padding: '18px', background: 'rgba(255,255,255,0.05)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 18, fontSize: 16, fontWeight: 700, cursor: isVerifying ? 'wait' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, backdropFilter: 'blur(10px)' }}
+              >
+                {isVerifying ? 'Initializing Demo...' : 'Explore with Demo Bank'}
+              </button>
+            </div>
 
-        {/* Option 3 */}
-        <div style={{ position: 'relative' }}>
-          <GlowingArrow style={{ top: -25, left: -165 }} rotate={-5} />
-          <ChalkText style={{ position: 'absolute', top: -70, left: -420, width: 260, textAlign: 'right' }}>
-            Privacy first. No Login Needed<br/>
-            <span style={{ fontSize: 16, opacity: 0.7 }}>(Upload screenshot of Bank balance and Transaction History)</span>
-          </ChalkText>
-          <div style={{ position: 'relative' }}>
-            <input 
-              type="file" accept="image/*" onChange={handleFileUpload} 
-              style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', opacity: 0, cursor: isUploading ? 'not-allowed' : 'pointer', zIndex: 2 }}
-              disabled={isUploading}
-            />
+            {/* Option 3 */}
+            <div style={{ position: 'relative' }}>
+              <GlowingArrow style={{ top: -25, left: -165 }} rotate={-5} />
+              <ChalkText style={{ position: 'absolute', top: -70, left: -420, width: 260, textAlign: 'right' }}>
+                Privacy first. No Login Needed<br/>
+                <span style={{ fontSize: 16, opacity: 0.7 }}>(Upload screenshot of Bank balance and Transaction History)</span>
+              </ChalkText>
+              <button 
+                className="glow-button-green-outline"
+                onClick={() => setStep('upload')}
+                style={{ width: '100%', padding: '18px', background: 'rgba(16, 185, 129, 0.05)', color: '#A7F3D0', border: '1.5px dashed rgba(16, 185, 129, 0.3)', borderRadius: 18, fontSize: 16, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}
+              >
+                <Camera size={20} /> Upload Statement
+              </button>
+            </div>
+          </>
+        )}
+
+        {step === 'api_error' && (
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 20, animation: 'fadeUp 0.3s ease', textAlign: 'center' }}>
+            <div style={{ width: 80, height: 80, borderRadius: '50%', background: 'rgba(239, 68, 68, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 8 }}>
+              <AlertTriangle size={40} color="#EF4444" />
+            </div>
+            <h2 style={{ fontSize: 24, fontWeight: 800, color: '#fff' }}>Setu API Unavailable</h2>
+            <p style={{ fontSize: 15, color: '#A7F3D0', opacity: 0.8, lineHeight: 1.6 }}>
+              The Account Aggregator gateway is currently undergoing maintenance. Direct bank linking is temporarily disabled.
+            </p>
+            <div style={{ background: 'rgba(255,255,255,0.05)', padding: '16px', borderRadius: 16, border: '1px solid rgba(255,255,255,0.1)', width: '100%' }}>
+              <p style={{ fontSize: 13, color: '#FCA5A5', fontWeight: 600 }}>Error Code: 503_SERVICE_UNAVAILABLE</p>
+            </div>
             <button 
-              className="glow-button-green-outline"
-              style={{ width: '100%', padding: '18px', background: 'rgba(16, 185, 129, 0.05)', color: '#A7F3D0', border: '1.5px dashed rgba(16, 185, 129, 0.3)', borderRadius: 18, fontSize: 16, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}
+              className="glow-button-white"
+              onClick={() => setStep('choice')}
+              style={{ width: '100%', padding: 18, borderRadius: 14, background: 'rgba(255,255,255,0.05)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)', fontSize: 16, fontWeight: 700, cursor: 'pointer', marginTop: 12 }}
             >
-              <Camera size={20} /> {isUploading ? 'Extracting...' : 'Upload Statement'}
+              Go Back to Options
             </button>
           </div>
-        </div>
+        )}
+
+        {step === 'manual' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16, animation: 'fadeUp 0.3s ease' }}>
+            <input 
+              type="text" placeholder="Bank Name (e.g. HDFC)" 
+              value={manualData.bankName} onChange={e => setManualData({...manualData, bankName: e.target.value})}
+              style={{ padding: 16, borderRadius: 12, border: 'none', background: 'rgba(255,255,255,0.08)', color: '#fff', outline: 'none', fontSize: 15 }}
+            />
+            <input 
+              type="text" placeholder="Account Number" 
+              value={manualData.accountNum} onChange={e => setManualData({...manualData, accountNum: e.target.value})}
+              style={{ padding: 16, borderRadius: 12, border: 'none', background: 'rgba(255,255,255,0.08)', color: '#fff', outline: 'none', fontSize: 15 }}
+            />
+            <input 
+              type="text" placeholder="IFSC Code (e.g. HDFC0001234)" 
+              value={manualData.ifsc} onChange={e => setManualData({...manualData, ifsc: e.target.value.toUpperCase()})}
+              style={{ padding: 16, borderRadius: 12, border: 'none', background: 'rgba(255,255,255,0.08)', color: '#fff', outline: 'none', fontSize: 15 }}
+            />
+            <button 
+              className="glow-button"
+              onClick={() => {
+                const ifscRegex = /^[A-Z]{4}0[A-Z0-9]{6}$/;
+                const acctRegex = /^\d{9,18}$/;
+                if (!acctRegex.test(manualData.accountNum)) {
+                  alert("Please enter a valid Account Number (9-18 digits).");
+                  return;
+                }
+                if (!ifscRegex.test(manualData.ifsc)) {
+                  alert("Please enter a valid IFSC Code (e.g. HDFC0001234).");
+                  return;
+                }
+                setStep('api_error'); // Mock error after data entry
+              }}
+              disabled={!manualData.bankName || !manualData.accountNum || !manualData.ifsc}
+              style={{ marginTop: 12, padding: 18, borderRadius: 14, background: '#10B981', color: '#0F3122', border: 'none', fontSize: 16, fontWeight: 800, cursor: 'pointer' }}
+            >
+              Verify & Connect
+            </button>
+            <p style={{ fontSize: 12, color: '#A7F3D0', opacity: 0.5, textAlign: 'center', marginTop: 8 }}>
+              Secured by Setu Account Aggregator. We do not store your credentials.
+            </p>
+          </div>
+        )}
+
+        {step === 'upload' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 24, animation: 'fadeUp 0.3s ease' }}>
+            {/* Box 1: Balance */}
+            <div style={{ position: 'relative', background: 'rgba(255,255,255,0.05)', border: '2px dashed rgba(16, 185, 129, 0.3)', borderRadius: 20, padding: 24, textAlign: 'center' }}>
+              <input type="file" accept="image/*" onChange={(e) => setStatementData({...statementData, balanceImg: e.target.files[0]})} style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer' }} />
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
+                <Activity size={24} color="#10B981" />
+                <p style={{ fontSize: 14, fontWeight: 700, color: '#fff' }}>{statementData.balanceImg ? 'Balance Selected ✓' : 'Upload Bank Balance'}</p>
+                <p style={{ fontSize: 11, color: '#A7F3D0', opacity: 0.7 }}>Screenshot of your current account balance</p>
+              </div>
+            </div>
+
+            {/* Box 2: Transactions */}
+            <div style={{ position: 'relative', background: 'rgba(255,255,255,0.05)', border: '2px dashed rgba(16, 185, 129, 0.3)', borderRadius: 20, padding: 24, textAlign: 'center' }}>
+              <input type="file" accept="image/*" multiple onChange={(e) => setStatementData({...statementData, transactionImgs: Array.from(e.target.files)})} style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer' }} />
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
+                <Briefcase size={24} color="#10B981" />
+                <p style={{ fontSize: 14, fontWeight: 700, color: '#fff' }}>
+                  {statementData.transactionImgs.length > 0 ? `${statementData.transactionImgs.length} Transactions Uploaded ✓` : 'Upload Transaction History'}
+                </p>
+                <p style={{ fontSize: 11, color: '#A7F3D0', opacity: 0.7 }}>Select one or multiple screenshots of history</p>
+              </div>
+            </div>
+
+            {/* Financial Goals Form */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <p style={{ fontSize: 11, fontWeight: 700, color: '#A7F3D0', textTransform: 'uppercase', letterSpacing: '0.05em', opacity: 0.6 }}>Your Financial Profile</p>
+              
+              <div style={{ display: 'flex', gap: 12 }}>
+                <input 
+                  type="number" placeholder="Monthly Income (₹)" 
+                  value={statementData.monthlyIncome} onChange={e => setStatementData({...statementData, monthlyIncome: e.target.value})}
+                  style={{ flex: 1, padding: 14, borderRadius: 12, border: 'none', background: 'rgba(255,255,255,0.08)', color: '#fff', outline: 'none', fontSize: 14 }}
+                />
+                <input 
+                  type="number" placeholder="Rent/Fixed Bills (₹)" 
+                  value={statementData.fixedExpenses} onChange={e => setStatementData({...statementData, fixedExpenses: e.target.value})}
+                  style={{ flex: 1, padding: 14, borderRadius: 12, border: 'none', background: 'rgba(255,255,255,0.08)', color: '#fff', outline: 'none', fontSize: 14 }}
+                />
+              </div>
+
+              <input 
+                type="number" placeholder="Target Lifestyle Spending (₹/mo)" 
+                value={statementData.lifestyleSpend} onChange={e => setStatementData({...statementData, lifestyleSpend: e.target.value})}
+                style={{ padding: 14, borderRadius: 12, border: 'none', background: 'rgba(255,255,255,0.08)', color: '#fff', outline: 'none', fontSize: 14 }}
+              />
+
+              <div style={{ display: 'flex', gap: 12 }}>
+                <input 
+                  type="text" placeholder="Reward (e.g. Goa Trip)" 
+                  value={statementData.rewardName} onChange={e => setStatementData({...statementData, rewardName: e.target.value})}
+                  style={{ flex: 1.5, padding: 14, borderRadius: 12, border: 'none', background: 'rgba(255,255,255,0.08)', color: '#fff', outline: 'none', fontSize: 14 }}
+                />
+                <input 
+                  type="number" placeholder="Cost (₹)" 
+                  value={statementData.rewardValue} onChange={e => setStatementData({...statementData, rewardValue: e.target.value})}
+                  style={{ flex: 1, padding: 14, borderRadius: 12, border: 'none', background: 'rgba(255,255,255,0.08)', color: '#fff', outline: 'none', fontSize: 14 }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', gap: 12 }}>
+                <input 
+                  type="number" placeholder="Emergency Target (₹)" 
+                  value={statementData.emergencyGoal} onChange={e => setStatementData({...statementData, emergencyGoal: e.target.value})}
+                  style={{ flex: 1, padding: 14, borderRadius: 12, border: 'none', background: 'rgba(255,255,255,0.08)', color: '#fff', outline: 'none', fontSize: 14 }}
+                />
+                <input 
+                  type="number" placeholder="Current Debt (₹)" 
+                  value={statementData.currentDebt} onChange={e => setStatementData({...statementData, currentDebt: e.target.value})}
+                  style={{ flex: 1, padding: 14, borderRadius: 12, border: 'none', background: 'rgba(255,255,255,0.08)', color: '#fff', outline: 'none', fontSize: 14 }}
+                />
+              </div>
+            </div>
+
+            <button 
+              className="glow-button"
+              onClick={handleFinalize}
+              disabled={isUploading || !statementData.balanceImg || statementData.transactionImgs.length === 0}
+              style={{ padding: 18, borderRadius: 14, background: '#10B981', color: '#0F3122', border: 'none', fontSize: 16, fontWeight: 800, cursor: isUploading ? 'wait' : 'pointer', opacity: isUploading ? 0.7 : 1 }}
+            >
+              {isUploading ? 'AI Extracting Data...' : 'Analyze & Setup OS'}
+            </button>
+          </div>
+        )}
 
       </div>
     </div>
@@ -1344,7 +1675,8 @@ export default function App() {
 
   const checkBankStatus = async (session) => {
     try {
-      const headers = session?.user ? { 'x-user-id': session.user.id } : {};
+      const devId = localStorage.getItem('finotsa_dev_id');
+      const headers = { 'x-user-id': session?.user?.id || devId || 'default_user' };
       const res = await fetch('/api/engine', { headers });
       const data = await res.json();
       setBankLinked(data.bankLinked);
@@ -1383,14 +1715,19 @@ export default function App() {
     { id: 'engine', icon: Cpu, label: 'Engine', accent: '#4338CA' },
   ];
 
+  // Theme logic removed
+
   if (!isLoggedIn) {
     if (!showAuth) {
       return <LandingPage onGetStarted={() => setShowAuth(true)} />;
     }
-    return <LoginScreen onLogin={(name) => { 
-      setUserName(name); 
-      setIsLoggedIn(true); 
-    }} />;
+    return <LoginScreen 
+      onLogin={(name) => { 
+        setUserName(name); 
+        setIsLoggedIn(true); 
+      }} 
+      onBack={() => setShowAuth(false)}
+    />;
   }
 
   if (bankLinked === null) {
@@ -1398,7 +1735,13 @@ export default function App() {
   }
 
   if (!bankLinked) {
-    return <OnboardingScreen onLinked={() => setBankLinked(true)} />;
+    return <OnboardingScreen 
+      onLinked={() => setBankLinked(true)} 
+      onBack={() => {
+        supabase.auth.signOut();
+        setIsLoggedIn(false);
+      }}
+    />;
   }
 
   return (
@@ -1418,14 +1761,17 @@ export default function App() {
       `}</style>
 
       <div style={{ minHeight: '100vh', maxWidth: 480, margin: '0 auto', background: '#F9FAFB', position: 'relative', boxShadow: '0 0 50px rgba(0,0,0,0.05)' }}>
-        {tab === 'home' && <PulseTab key="home" userName={userName} />}
-        {tab === 'coach' && <CoachTab key="coach" userName={userName} />}
-        {tab === 'engine' && <EngineTab key="engine" userName={userName} />}
+        {tab === 'home' && <PulseTab key="home" userName={userName} onBack={() => {
+          supabase.auth.signOut();
+          setIsLoggedIn(false);
+        }} />}
+        {tab === 'coach' && <CoachTab key="coach" userName={userName} onBack={() => setTab('home')} />}
+        {tab === 'engine' && <EngineTab key="engine" userName={userName} onBack={() => setTab('home')} />}
       </div>
 
       {/* Bottom Nav */}
-      <div style={{ position: 'fixed', bottom: 0, left: '50%', transform: 'translateX(-50%)', width: '100%', maxWidth: 480, padding: '12px 24px 28px', background: 'linear-gradient(180deg, transparent 0%, #F9FAFB 35%)' }}>
-        <div style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: 100, padding: '12px 32px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 8px 32px rgba(0,0,0,0.08)' }}>
+      <div style={{ position: 'fixed', bottom: 0, left: '50%', transform: 'translateX(-50%)', width: '100%', maxWidth: 480, padding: '12px 24px 28px', background: `linear-gradient(180deg, transparent 0%, #F9FAFB 35%)` }}>
+        <div style={{ background: '#fff', border: `1px solid #E5E7EB`, borderRadius: 100, padding: '12px 32px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 8px 32px rgba(0,0,0,0.08)' }}>
           {tabs.map(({ id, label, icon: Icon, accent }) => {
             const active = tab === id;
             return (

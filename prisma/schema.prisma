@@ -17,6 +17,7 @@ model User {
   fixedExpenses   Float         @default(6200)
   emergencyBuffer Float         @default(2000)
   bankLinked      Boolean       @default(false)
+  currentBalance  Float         @default(0)
   aaConsentId     String?
   transactions    Transaction[]
   insights        Insight[]

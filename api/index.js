@@ -32,87 +32,79 @@ const getUser = async (req) => {
   return user;
 };
 
+const classifyMerchant = async (shopName) => {
+  const maps = await prisma.merchantMap.findMany();
+  for (const map of maps) {
+    if (shopName.toUpperCase().includes(map.pattern.toUpperCase())) {
+      return map.categoryId;
+    }
+  }
+  const defaultCat = await prisma.category.findFirst({ where: { name: 'Shopping' } });
+  return defaultCat?.id || 1;
+};
+
 app.get('/api/pulse', async (req, res) => {
   const user = await getUser(req);
   const transactions = await prisma.transaction.findMany({
+    where: { userId: user.id },
     include: { category: true },
+    orderBy: { date: 'desc' }
   });
-  
-  const categoryMap = {};
-  let totalSpend = 0;
-  transactions.forEach(t => {
-    if (!categoryMap[t.categoryId]) {
-      categoryMap[t.categoryId] = {
-        name: t.category.name,
-        emoji: t.category.emoji,
-        warning: t.category.warningFlag,
-        amount: 0,
-        shops: [],
-      };
+
+  const categories = await prisma.category.findMany({
+    include: {
+      transactions: {
+        where: { userId: user.id }
+      }
     }
-    categoryMap[t.categoryId].amount += t.amount;
-    totalSpend += t.amount;
-    categoryMap[t.categoryId].shops.push({
+  });
+
+  const detailedCategories = categories.map(cat => ({
+    name: cat.name,
+    amount: cat.transactions.reduce((sum, t) => sum + t.amount, 0),
+    emoji: cat.emoji,
+    warning: cat.warningFlag,
+    pct: Math.min(100, Math.round((cat.transactions.reduce((sum, t) => sum + t.amount, 0) / (Math.max(1, user.monthlyIncome) * 0.1)) * 100)),
+    shops: cat.transactions.slice(0, 5).map(t => ({
       name: t.shopName,
       amount: t.amount,
-      date: 'Recent',
-    });
-  });
+      date: new Date(t.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })
+    }))
+  })).filter(s => s.amount > 0);
 
-  const detailedCategories = Object.values(categoryMap).map(cat => ({
-    ...cat,
-    pct: totalSpend > 0 ? Math.round((cat.amount / totalSpend) * 100) : 0,
-  }));
+  // Budget Logic
+  const monthlyIncome = user.monthlyIncome || 45000;
+  const fixedExpenses = user.fixedExpenses || 6200;
+  const emergencyBuffer = user.emergencyBuffer || 2000;
+  const subsSpend = transactions.filter(t => t.category.name === 'Subs').reduce((s, t) => s + t.amount, 0);
+  
+  const goals = user.goals || [];
+  const totalGoalTarget = goals.reduce((sum, g) => sum + g.targetAmount, 0);
+  
+  const availableForMonth = monthlyIncome - fixedExpenses - subsSpend - emergencyBuffer - totalGoalTarget;
+  
+  const now = new Date();
+  const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+  const daysRemaining = lastDay - now.getDate() + 1;
+  
+  const baseDailyLimit = Math.max(0, Math.floor(availableForMonth / daysRemaining));
+  const aiAdjustment = (now.getDay() === 0 || now.getDay() === 6) ? -200 : 0; // Lower limit on weekends
+  const safeToday = Math.max(0, baseDailyLimit + aiAdjustment);
 
-  // Calculate Safe to Spend Budget
-  const monthlyIncome = user?.monthlyIncome || 45000;
-  const fixedExpenses = user?.fixedExpenses || 6200;
-  const emergencyBuffer = user?.emergencyBuffer || 2000;
-  
-  // Calculate goal targets for the month
-  let goalMonthlyTarget = 0;
-  let activeGoals = [];
-  if (user?.goals) {
-    user.goals.forEach(g => {
-       const target = 1000; // Simulated monthly commitment
-       goalMonthlyTarget += target;
-       activeGoals.push({ name: g.name, target });
-    });
-  }
-  
-  // Subscriptions (for simplicity, simulated from 'Subs' category)
-  const subsSpend = transactions.filter(t => t.category?.name === 'Subs').reduce((sum, t) => sum + t.amount, 0) || 1200;
+  const budget = {
+    monthlyIncome,
+    fixedExpenses,
+    subsSpend,
+    emergencyBuffer,
+    availableForMonth,
+    daysRemaining,
+    baseDailyLimit,
+    aiAdjustment,
+    safeToday,
+    goals: goals.map(g => ({ name: g.name, target: g.targetAmount }))
+  };
 
-  const availableForMonth = monthlyIncome - fixedExpenses - subsSpend - emergencyBuffer - goalMonthlyTarget;
-  
-  // Simulate time
-  const daysInMonth = 30;
-  const currentDay = new Date().getDate();
-  const daysRemaining = Math.max(1, daysInMonth - currentDay);
-  
-  const variableSpend = totalSpend - subsSpend; 
-  const remainingBudget = availableForMonth - variableSpend;
-  
-  const baseDailyLimit = Math.round(remainingBudget / daysRemaining);
-  const aiAdjustment = -150; // AI prediction penalty for weekend
-  const safeToday = baseDailyLimit + aiAdjustment;
-
-  res.json({
-    detailedCategories,
-    budget: {
-      monthlyIncome,
-      fixedExpenses,
-      subsSpend,
-      emergencyBuffer,
-      goals: activeGoals,
-      availableForMonth,
-      daysRemaining,
-      baseDailyLimit,
-      aiAdjustment,
-      safeToday: Math.max(0, safeToday),
-      variableSpend
-    }
-  });
+  res.json({ detailedCategories, budget, currentBalance: user.currentBalance });
 });
 
 app.post('/api/user/settings', async (req, res) => {
@@ -132,29 +124,55 @@ app.post('/api/user/settings', async (req, res) => {
 
 app.get('/api/coach', async (req, res) => {
   const user = await getUser(req);
+  const transactions = await prisma.transaction.findMany({
+    where: { userId: user.id },
+    include: { category: true }
+  });
+
   const insights = await prisma.insight.findMany();
   const benchmarks = await prisma.benchmark.findMany();
 
-  const opps = insights.filter(i => i.type === 'SAVING').map(i => ({
-    title: i.title,
-    sub: i.description,
-    save: i.suggestedAction,
-    effort: i.effort,
-    emoji: i.icon
-  }));
+  const foodSpend = transactions.filter(t => t.category.name === 'Food').reduce((s, t) => s + t.amount, 0);
+  const shoppingSpend = transactions.filter(t => t.category.name === 'Shopping').reduce((s, t) => s + t.amount, 0);
 
-  const taxOpps = insights.filter(i => i.type === 'TAX').map(i => ({
-    title: i.title,
-    desc: i.description,
-    save: i.suggestedAction,
-    icon: i.icon
-  }));
+  const dynamicOpps = [
+    {
+      title: `Cook 3x vs Swiggy`,
+      sub: `You spent ₹${foodSpend.toLocaleString('en-IN')} on food recently.`,
+      save: `₹${Math.round(foodSpend * 0.2).toLocaleString('en-IN')}/mo`,
+      effort: 'Medium',
+      emoji: '🍱'
+    },
+    ...insights.filter(i => i.type === 'SAVING' && i.title !== 'Cook 3x vs Swiggy').map(i => ({
+      title: i.title,
+      sub: i.description,
+      save: i.suggestedAction,
+      effort: i.effort,
+      emoji: i.icon
+    }))
+  ];
+
+  const dynamicBenchmarks = benchmarks.map(b => {
+    let current = b.current;
+    if (b.label.toLowerCase().includes('food')) current = foodSpend;
+    if (b.label.toLowerCase().includes('shopping')) current = shoppingSpend;
+    return { ...b, current };
+  });
 
   res.json({
     healthScore: user?.healthScore || 0,
-    opps,
-    taxOpps,
-    selfCompare: benchmarks,
+    opps: dynamicOpps,
+    taxOpps: insights.filter(i => i.type === 'TAX').map(i => ({
+      title: i.title,
+      desc: i.description,
+      save: i.suggestedAction,
+      icon: i.icon
+    })),
+    selfCompare: dynamicBenchmarks,
+    summary: {
+      foodSpend,
+      shoppingSpend
+    }
   });
 });
 
@@ -189,7 +207,6 @@ app.post('/api/aa/consent', async (req, res) => {
 
   try {
     if (process.env.SETU_CLIENT_ID && process.env.SETU_CLIENT_SECRET) {
-      // Real implementation calling Setu FIU Sandbox API
       const setuRes = await fetch('https://fiu-sandbox.setu.co/consents', {
         method: 'POST',
         headers: {
@@ -244,7 +261,6 @@ app.post('/api/aa/consent', async (req, res) => {
       }
     }
 
-    // Mock response fallback if Setu keys aren't configured
     const fakeConsentId = `consent_${Math.random().toString(36).substr(2, 9)}`;
     
     await prisma.user.update({
@@ -263,6 +279,65 @@ app.post('/api/aa/consent', async (req, res) => {
   }
 });
 
+app.post('/api/aa/demo', async (req, res) => {
+  const user = await getUser(req);
+  if (!user) return res.status(401).json({ error: 'Unauthorized' });
+
+  // 1. Mark as linked
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { bankLinked: true, currentBalance: 84250 }
+  });
+
+  // 2. Seed Transactions if none exist
+  const txCount = await prisma.transaction.count({ where: { userId: user.id } });
+  if (txCount === 0) {
+    const categories = await prisma.category.findMany();
+    const getCat = (name) => categories.find(c => c.name === name)?.id || categories[0].id;
+
+    const demoTxns = [
+      { userId: user.id, amount: 649, shopName: 'Netflix Subscription', categoryId: getCat('Subs'), date: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000) },
+      { userId: user.id, amount: 1450, shopName: 'Amazon Shopping', categoryId: getCat('Shopping'), date: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000) },
+      { userId: user.id, amount: 340, shopName: 'Swiggy Delivery', categoryId: getCat('Food'), date: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000) },
+      { userId: user.id, amount: 243, shopName: 'Uber Ride', categoryId: getCat('Transport'), date: new Date(Date.now() - 0.5 * 24 * 60 * 60 * 1000) },
+      { userId: user.id, amount: 180, shopName: 'Starbucks Coffee', categoryId: getCat('Café'), date: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000) },
+      { userId: user.id, amount: 1200, shopName: 'Grocery Store', categoryId: getCat('Food'), date: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000) },
+    ];
+
+    await prisma.transaction.createMany({ data: demoTxns });
+  }
+
+  // 3. Seed Engine Rules if none exist
+  const ruleCount = await prisma.engineRule.count({ where: { userId: user.id } });
+  if (ruleCount === 0) {
+    await prisma.engineRule.createMany({
+      data: [
+        { userId: user.id, name: 'Daily Round-up', desc: 'Round up every transaction to the next ₹10 and invest.', saved: '₹420', icon: 'Zap' },
+        { userId: user.id, name: 'Subscription Shield', desc: 'Auto-detect and flag price hikes in your subs.', saved: '₹0', icon: 'Shield' },
+        { userId: user.id, name: 'Weekend Sweep', desc: 'Sweep 1% of your balance every Sunday into savings.', saved: '₹1,250', icon: 'Target' },
+      ]
+    });
+  }
+
+  // 4. Seed Portfolio if none exists
+  const portfolio = await prisma.portfolio.findUnique({ where: { userId: user.id } });
+  if (!portfolio) {
+    await prisma.portfolio.create({
+      data: {
+        userId: user.id,
+        totalInvested: 12450,
+        returns: 840,
+        returnsPct: 6.8
+      }
+    });
+  }
+
+  // 5. Update Health Score
+  await updateHealthScore(user.id);
+
+  res.json({ success: true });
+});
+
 app.post('/api/aa/verify', async (req, res) => {
   const user = await getUser(req);
   if (user && user.aaConsentId) {
@@ -271,7 +346,6 @@ app.post('/api/aa/verify', async (req, res) => {
       data: { bankLinked: true }
     });
 
-    // Automatically fetch 30 days of data (Simulated for Demo)
     const existingCount = await prisma.transaction.count({ where: { userId: user.id } });
     if (existingCount === 0) {
       const foodCat = await prisma.category.findFirst({ where: { name: 'Food' } });
@@ -294,20 +368,10 @@ app.post('/api/aa/sync', async (req, res) => {
   const user = await getUser(req);
   if (!user || !user.bankLinked) return res.status(400).json({ error: 'Bank not linked' });
 
-  // Simulate finding a new transaction on the bank statement via Setu AA
   const randomAmount = Math.floor(Math.random() * 500) + 50;
   const merchants = ['UPI/ZOMATO', 'UPI/SWIGGY', 'UPI/UBER', 'UPI/STARBUCKS', 'UPI/AMAZON', 'UPI/MYNTRA'];
   const randomMerchant = merchants[Math.floor(Math.random() * merchants.length)];
-
-  // We'll reuse our webhook logic to categorize it!
-  const maps = await prisma.merchantMap.findMany();
-  let categoryId = null;
-  for (const map of maps) {
-    if (randomMerchant.toUpperCase().includes(map.pattern.toUpperCase())) {
-      categoryId = map.categoryId; break;
-    }
-  }
-  if (!categoryId) categoryId = 1; // Default
+  const categoryId = await classifyMerchant(randomMerchant);
 
   const transaction = await prisma.transaction.create({
     data: { amount: randomAmount, shopName: randomMerchant, userId: user.id, categoryId },
@@ -325,44 +389,61 @@ app.post('/api/upload-statement', async (req, res) => {
   if (!imageBase64 || !mimeType) return res.status(400).json({ error: 'Missing image data' });
 
   try {
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: [
-        {
-          inlineData: {
-            data: imageBase64,
-            mimeType: mimeType
-          }
-        },
-        "Extract all bank transactions from this screenshot. Return a JSON array of objects, where each object has 'amount' (number) and 'shopName' (string, representing the merchant or description). Return ONLY the raw JSON array without any markdown formatting like ```json or anything else."
-      ]
-    });
+    let response;
+    let retries = 0;
+    while (retries < 3) {
+      try {
+        const model = ai.getGenerativeModel({ model: 'gemini-1.5-flash' });
+        response = await model.generateContent({
+          contents: [
+            {
+              inlineData: { data: imageBase64, mimeType: mimeType }
+            },
+            { text: "Extract all bank transactions and the current bank balance from this screenshot. Return a JSON object with 'balance' (number or null) and 'transactions' (array of objects with 'amount' (number) and 'shopName' (string)). Return ONLY the raw JSON object without any markdown formatting." }
+          ]
+        });
+        break;
+      } catch (e) {
+        const status = e.status || (e.response && e.response.status);
+        if ((status === 503 || status === 429) && retries < 2) {
+          retries++;
+          const delay = status === 429 ? 10000 : 3000;
+          await new Promise(r => setTimeout(r, delay));
+          continue;
+        }
+        throw e;
+      }
+    }
 
-    let rawText = response.text?.trim() || '[]';
-    if (rawText.startsWith('```json')) rawText = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
-    if (rawText.startsWith('```')) rawText = rawText.replace(/```/g, '').trim();
+    let rawText = response.text?.trim() || '{}';
+    console.log('[API] Raw Gemini Response:', rawText);
+    
+    if (rawText.startsWith('```json')) rawText = rawText.replace(/```json|```/g, '');
+    
+    let extracted;
+    try {
+      extracted = JSON.parse(rawText);
+    } catch (parseErr) {
+      console.error('[API] JSON Parse Error:', parseErr, 'Raw Text:', rawText);
+      // Try to find JSON block if it failed
+      const jsonMatch = rawText.match(/\{[\s\S]*\}/);
+      if (jsonMatch) extracted = JSON.parse(jsonMatch[0]);
+      else throw parseErr;
+    }
 
-    const extractedTxs = JSON.parse(rawText);
-    const maps = await prisma.merchantMap.findMany();
-    const categories = await prisma.category.findMany();
-    const defaultCatId = categories.find(c => c.name === 'Shopping')?.id || 1;
+    const txs = extracted.transactions || [];
+    const extractedBalance = extracted.balance;
+
+    if (extractedBalance !== undefined && extractedBalance !== null) {
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { currentBalance: parseFloat(extractedBalance) }
+      });
+    }
 
     let addedCount = 0;
-    for (const tx of extractedTxs) {
-      if (!tx.amount || !tx.shopName) continue;
-      
-      let categoryId = null;
-      for (const map of maps) {
-        if (tx.shopName.toUpperCase().includes(map.pattern.toUpperCase())) {
-          categoryId = map.categoryId;
-          break;
-        }
-      }
-      
-      if (!categoryId) {
-        categoryId = defaultCatId;
-      }
-
+    for (const tx of txs) {
+      const categoryId = await classifyMerchant(tx.shopName);
       await prisma.transaction.create({
         data: {
           userId: user.id,
@@ -374,17 +455,16 @@ app.post('/api/upload-statement', async (req, res) => {
       addedCount++;
     }
 
-    if (!user.bankLinked) {
-      await prisma.user.update({
-        where: { id: user.id },
-        data: { bankLinked: true }
-      });
-    }
-
-    res.json({ success: true, count: addedCount });
+    await updateHealthScore(user.id);
+    res.json({ 
+      success: true, 
+      count: addedCount, 
+      balanceFound: extractedBalance !== null, 
+      currentBalance: extractedBalance 
+    });
   } catch (error) {
-    console.error('OCR Error:', error);
-    res.status(500).json({ error: 'Failed to process screenshot' });
+    console.error('[API] /api/upload-statement: Final Error:', error);
+    res.status(500).json({ error: error.message || 'Failed to process screenshot' });
   }
 });
 
@@ -410,11 +490,9 @@ app.post('/api/webhook/transaction', async (req, res) => {
     let llmCategoryName = 'Shopping'; // default fallback
     
     try {
-      const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents: `Categorize the following bank transaction merchant name into exactly one of these exact categories: Food, Shopping, Transport, Utilities, Entertainment, Health, Transfer, Subs, Other. Merchant: "${shopName}". Return ONLY the exact category name as plain text.`,
-      });
-      const rawText = response.text?.trim() || '';
+      const model = ai.getGenerativeModel({ model: 'gemini-1.5-flash' });
+      const response = await model.generateContent(`Categorize the following bank transaction merchant name into exactly one of these exact categories: Food, Shopping, Transport, Utilities, Entertainment, Health, Transfer, Subs, Other. Merchant: "${shopName}". Return ONLY the exact category name as plain text.`);
+      const rawText = response.response.text()?.trim() || '';
       if (rawText) {
         llmCategoryName = rawText.split('\n')[0].trim();
       }
@@ -449,54 +527,56 @@ app.post('/api/webhook/transaction', async (req, res) => {
   res.json({ success: true, transaction });
 });
 
+const updateHealthScore = async (userId) => {
+  const transactions = await prisma.transaction.findMany({
+    where: { userId },
+    include: { category: true }
+  });
+
+  const user = await prisma.user.findUnique({ where: { id: userId }, include: { goals: true } });
+  if (!user) return;
+
+  let score = 100;
+  
+  // 1. Spend-to-Income (30 pts)
+  const totalSpend = transactions.filter(t => t.category.type === 'EXPENSE').reduce((sum, t) => sum + t.amount, 0);
+  const income = user.monthlyIncome || 150000;
+  if (totalSpend > income * 0.8) score -= 20;
+  else if (totalSpend > income * 0.6) score -= 10;
+
+  // 2. Savings Rate (25 pts)
+  const portfolio = await prisma.portfolio.findUnique({ where: { userId: user.id }});
+  const saved = portfolio ? portfolio.totalInvested : 0;
+  if (saved < income * 0.1) score -= 15;
+
+  // 3. Fixed vs Variable (20 pts)
+  const variableSpend = transactions.filter(t => t.category.name === 'Food' || t.category.name === 'Shopping').reduce((sum, t) => sum + t.amount, 0);
+  if (variableSpend > totalSpend * 0.4) score -= 10;
+
+  // 4. Subscription Efficiency (10 pts)
+  const subSpend = transactions.filter(t => t.category.name === 'Subs').reduce((sum, t) => sum + t.amount, 0);
+  if (subSpend > 5000) score -= 5;
+
+  score = Math.max(0, Math.min(100, score));
+
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { healthScore: score }
+  });
+
+  await prisma.healthScoreHistory.create({
+    data: { userId: user.id, score }
+  });
+  
+  return score;
+};
+
 // Phase 1: Nightly Health Score Algorithm
 app.post('/api/cron/health-score', async (req, res) => {
   const users = await prisma.user.findMany();
-  
   for (const user of users) {
-    // Fetch last 30 days of transactions (simulated with all transactions for MVP)
-    const transactions = await prisma.transaction.findMany({
-      where: { userId: user.id },
-      include: { category: true }
-    });
-
-    let score = 100;
-    
-    // 1. Spend-to-Income (30 pts)
-    const totalSpend = transactions.filter(t => t.category.type === 'EXPENSE').reduce((sum, t) => sum + t.amount, 0);
-    const income = 150000; // Simulated monthly income
-    if (totalSpend > income * 0.8) score -= 20;
-    else if (totalSpend > income * 0.6) score -= 10;
-
-    // 2. Savings Rate (25 pts)
-    // Assume any portfolio value is savings
-    const portfolio = await prisma.portfolio.findUnique({ where: { userId: user.id }});
-    const saved = portfolio ? portfolio.totalInvested : 0;
-    if (saved < income * 0.1) score -= 15;
-
-    // 3. Fixed vs Variable (20 pts)
-    const variableSpend = transactions.filter(t => t.category.name === 'Food' || t.category.name === 'Shopping').reduce((sum, t) => sum + t.amount, 0);
-    if (variableSpend > totalSpend * 0.4) score -= 10;
-
-    // 4. Buffer (15 pts) - Assumed based on balance vs fixed expenses
-    // 5. Subscription Efficiency (10 pts)
-    const subSpend = transactions.filter(t => t.category.name === 'Subs').reduce((sum, t) => sum + t.amount, 0);
-    if (subSpend > 5000) score -= 5;
-
-    // Cap score between 0 and 100
-    score = Math.max(0, Math.min(100, score));
-
-    // Update user and history
-    await prisma.user.update({
-      where: { id: user.id },
-      data: { healthScore: score }
-    });
-
-    await prisma.healthScoreHistory.create({
-      data: { userId: user.id, score }
-    });
+    await updateHealthScore(user.id);
   }
-
   res.json({ success: true, message: "Nightly health scores recalculated." });
 });
 
