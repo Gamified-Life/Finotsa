@@ -191,3 +191,31 @@ body {
   font-weight: 400;
   color: var(--text-body);
 }
+
+.glow-button {
+  box-shadow: 0 8px 30px rgba(16, 185, 129, 0.4);
+  transition: all 0.3s ease;
+}
+
+.glow-button:hover {
+  transform: scale(1.05);
+  box-shadow: 0 0 40px rgba(16, 185, 129, 0.8), 0 0 20px rgba(16, 185, 129, 0.6);
+}
+
+.glow-button-white {
+  transition: all 0.3s ease;
+}
+
+.glow-button-white:hover {
+  transform: scale(1.05);
+  box-shadow: 0 0 30px rgba(255, 255, 255, 0.2), 0 0 15px rgba(255, 255, 255, 0.1);
+}
+
+.glow-button-green-outline {
+  transition: all 0.3s ease;
+}
+
+.glow-button-green-outline:hover {
+  transform: scale(1.05);
+  box-shadow: 0 0 30px rgba(16, 185, 129, 0.3), 0 0 15px rgba(16, 185, 129, 0.2);
+}

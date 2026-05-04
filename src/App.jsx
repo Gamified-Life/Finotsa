@@ -109,6 +109,7 @@ const PulseTab = ({ userName }) => {
       {/* Why exactly breakdown */}
       <div style={{ padding: '0 24px 4px' }}>
         <button
+          className="glow-button-white"
           onClick={() => setShowBreakdown(!showBreakdown)}
           style={{ width: '100%', background: '#fff', border: '1px solid #E5E7EB', borderRadius: 16, padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
           <span style={{ fontWeight: 700, fontSize: 14, color: '#111827' }}>Why exactly ₹{budget ? budget.safeToday : 0}?</span>
@@ -350,9 +351,10 @@ const CoachTab = ({ userName }) => {
                         <p style={{ fontSize: 11, color: '#B45309' }}>Save {opp.save}</p>
                       </div>
                       <button 
+                        className={completedOpps[i] ? "" : "glow-button"}
                         onClick={() => handleAct(i)}
                         disabled={actingOn === i || completedOpps[i]}
-                        style={{ background: completedOpps[i] ? '#16A34A' : AMBER, color: '#fff', border: 'none', padding: '6px 12px', borderRadius: 100, fontSize: 11, fontWeight: 600, cursor: (actingOn === i || completedOpps[i]) ? 'default' : 'pointer', transition: 'background 0.3s', opacity: actingOn === i ? 0.7 : 1 }}
+                        style={{ background: completedOpps[i] ? '#16A34A' : AMBER, color: '#fff', border: 'none', padding: '6px 12px', borderRadius: 100, fontSize: 11, fontWeight: 600, cursor: (actingOn === i || completedOpps[i]) ? 'default' : 'pointer', opacity: actingOn === i ? 0.7 : 1 }}
                       >
                         {actingOn === i ? '⏳...' : completedOpps[i] ? '✓ Done' : 'Act'}
                       </button>
@@ -713,6 +715,7 @@ const EngineTab = ({ userName }) => {
                 <span style={{ fontSize: 12, color: '#10B981', fontWeight: 600, background: 'rgba(16, 185, 129, 0.1)', padding: '4px 10px', borderRadius: 100 }}>Active</span>
               </div>
               <button 
+                className="glow-button-white"
                 onClick={async () => {
                   setIsSyncing(true);
                   try {
@@ -772,6 +775,7 @@ const EngineTab = ({ userName }) => {
               />
             </div>
             <button 
+              className="glow-button-white"
               onClick={handleUpdateProfile}
               disabled={isUpdating || !newIncome || !newRent}
               style={{ width: '100%', padding: '14px', background: '#F3F4F6', color: '#374151', border: 'none', borderRadius: 12, fontSize: 14, fontWeight: 700, cursor: isUpdating ? 'not-allowed' : 'pointer', opacity: (!newIncome || !newRent) ? 0.5 : 1 }}
@@ -785,6 +789,7 @@ const EngineTab = ({ userName }) => {
               Test the Nightly Sweep! The Engine checks your daily transactions, rounds them up, and auto-invests the difference.
             </p>
             <button 
+              className="glow-button-green-outline"
               onClick={handleSimulateSweep}
               disabled={isSweeping}
               style={{ width: '100%', padding: '14px', background: 'transparent', border: `1px dashed #10B981`, color: '#10B981', borderRadius: 12, fontSize: 14, fontWeight: 700, cursor: isSweeping ? 'wait' : 'pointer' }}
@@ -875,8 +880,9 @@ const LoginScreen = ({ onLogin }) => {
           style={{ fontFamily: 'inherit', width: '100%', padding: '16px 20px', fontSize: 16, borderRadius: 16, border: 'none', background: '#fff', color: '#111827', outline: 'none', marginBottom: 24, boxSizing: 'border-box' }}
         />
         <button 
+          className={(email && password) ? "glow-button" : ""}
           onClick={handleAuth} disabled={loading || !email || !password}
-          style={{ width: '100%', padding: 16, borderRadius: 16, background: (email && password) ? '#10B981' : '#1A4731', color: (email && password) ? '#fff' : '#6EE7B7', border: 'none', fontSize: 16, fontWeight: 700, cursor: (email && password) ? 'pointer' : 'not-allowed', transition: 'all 0.2s' }}
+          style={{ width: '100%', padding: 16, borderRadius: 16, background: (email && password) ? '#10B981' : '#1A4731', color: (email && password) ? '#fff' : '#6EE7B7', border: 'none', fontSize: 16, fontWeight: 700, cursor: (email && password) ? 'pointer' : 'not-allowed' }}
         >
           {loading ? 'Processing...' : (isSignUp ? 'Create Account' : 'Sign In')}
         </button>
@@ -1009,8 +1015,9 @@ const OnboardingScreen = ({ onLinked }) => {
           <GlowingArrow style={{ top: -45, left: -165 }} rotate={-5} />
           <ChalkText style={{ position: 'absolute', top: -75, left: -380, width: 220, textAlign: 'right' }}>Live data from your real bank</ChalkText>
           <button 
+            className="glow-button"
             onClick={handleLinkBank}
-            style={{ width: '100%', padding: '18px', background: '#10B981', color: '#0F3122', border: 'none', borderRadius: 18, fontSize: 16, fontWeight: 800, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, boxShadow: '0 8px 30px rgba(16, 185, 129, 0.3)' }}
+            style={{ width: '100%', padding: '18px', background: '#10B981', color: '#0F3122', border: 'none', borderRadius: 18, fontSize: 16, fontWeight: 800, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}
           >
             <Shield size={20} /> Link Real Bank (Setu AA)
           </button>
@@ -1021,6 +1028,7 @@ const OnboardingScreen = ({ onLinked }) => {
           <GlowingArrow style={{ top: -25, right: -165 }} rotate={-5} flip />
           <ChalkText style={{ position: 'absolute', top: -55, right: -380, width: 220, textAlign: 'left' }}>Just want to see how it works?</ChalkText>
           <button 
+            className="glow-button-white"
             onClick={onLinked}
             style={{ width: '100%', padding: '18px', background: 'rgba(255,255,255,0.05)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 18, fontSize: 16, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, backdropFilter: 'blur(10px)' }}
           >
@@ -1042,6 +1050,7 @@ const OnboardingScreen = ({ onLinked }) => {
               disabled={isUploading}
             />
             <button 
+              className="glow-button-green-outline"
               style={{ width: '100%', padding: '18px', background: 'rgba(16, 185, 129, 0.05)', color: '#A7F3D0', border: '1.5px dashed rgba(16, 185, 129, 0.3)', borderRadius: 18, fontSize: 16, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}
             >
               <Camera size={20} /> {isUploading ? 'Extracting...' : 'Upload Statement'}
@@ -1137,6 +1146,7 @@ const LandingPage = ({ onGetStarted }) => {
           <span style={{ fontSize: 20, fontWeight: 800, letterSpacing: '-0.02em' }}>Finotsa</span>
         </div>
         <button 
+          className="glow-button-white"
           onClick={onGetStarted}
           style={{ padding: '10px 20px', background: 'rgba(255,255,255,0.1)', color: '#fff', border: '1px solid rgba(255,255,255,0.2)', borderRadius: 100, fontSize: 14, fontWeight: 600, cursor: 'pointer', backdropFilter: 'blur(10px)' }}
         >
@@ -1165,8 +1175,9 @@ const LandingPage = ({ onGetStarted }) => {
         </p>
 
         <button 
+          className="glow-button"
           onClick={onGetStarted}
-          style={{ padding: '18px 40px', background: '#10B981', color: '#0F3122', border: 'none', borderRadius: 100, fontSize: 18, fontWeight: 800, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10, boxShadow: '0 8px 30px rgba(16, 185, 129, 0.4)', transition: 'transform 0.2s', ':hover': { transform: 'scale(1.05)' } }}
+          style={{ padding: '18px 40px', background: '#10B981', color: '#0F3122', border: 'none', borderRadius: 100, fontSize: 18, fontWeight: 800, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10 }}
         >
           Enter the OS <Activity size={20} />
         </button>
@@ -1276,8 +1287,9 @@ const LandingPage = ({ onGetStarted }) => {
         <div style={{ textAlign: 'center', paddingTop: 40, borderTop: '1px solid rgba(255,255,255,0.1)', position: 'relative', zIndex: 2 }}>
           <h2 style={{ fontSize: 32, fontWeight: 800, color: '#fff', marginBottom: 24, letterSpacing: '-0.03em' }}>Ready to take control?</h2>
           <button 
+            className="glow-button"
             onClick={onGetStarted}
-            style={{ padding: '18px 40px', background: '#10B981', color: '#0F3122', border: 'none', borderRadius: 100, fontSize: 18, fontWeight: 800, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 10, boxShadow: '0 8px 30px rgba(16, 185, 129, 0.4)', transition: 'transform 0.2s', ':hover': { transform: 'scale(1.05)' } }}
+            style={{ padding: '18px 40px', background: '#10B981', color: '#0F3122', border: 'none', borderRadius: 100, fontSize: 18, fontWeight: 800, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 10 }}
           >
             Start for free <ArrowDownRight size={20} />
           </button>
