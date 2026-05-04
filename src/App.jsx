@@ -812,7 +812,7 @@ const LoginScreen = ({ onLogin }) => {
     if (!email || !password || (isSignUp && !name)) return;
     
     // Developer bypass for rate limits
-    if (email === 'dev@gmail.com' && password === 'dev135') {
+    if (email === 'dev@gmail.com' && (password === 'dev135' || password === 'dev')) {
       onLogin(name || 'Developer');
       return;
     }
@@ -826,20 +826,26 @@ const LoginScreen = ({ onLogin }) => {
     setError(null);
     try {
       if (isSignUp) {
-        const { data, error } = await supabase.auth.signUp({ 
+        const { data, error: signupError } = await supabase.auth.signUp({ 
           email, 
           password,
           options: { data: { full_name: name } }
         });
-        if (error) throw error;
-        if (data.user) onLogin(name || 'User');
+        if (signupError) throw signupError;
+        if (data?.user) onLogin(name || 'User');
       } else {
-        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) throw error;
-        if (data.user) onLogin(data.user.user_metadata?.full_name || 'User');
+        const { data, error: signinError } = await supabase.auth.signInWithPassword({ email, password });
+        if (signinError) throw signinError;
+        if (data?.user) onLogin(data.user.user_metadata?.full_name || 'User');
       }
     } catch (e) {
-      setError(e.message);
+      console.error('Auth Error Details:', e);
+      // Detailed error for common failures
+      if (e.message === 'Failed to fetch') {
+        setError('Network Error: Check if Supabase URL is correct and reachable. If on Vercel, ensure environment variables are set.');
+      } else {
+        setError(e.message || 'An unexpected error occurred');
+      }
     }
     setLoading(false);
   };
@@ -1114,6 +1120,7 @@ const LandingPage = ({ onGetStarted }) => {
   ));
 
   return (
+    <>
     <div style={{ minHeight: '100vh', background: '#0F3122', color: '#fff', overflowX: 'hidden', position: 'relative', display: 'flex', flexDirection: 'column', perspective: 1500 }}>
       {/* Decorative Glows */}
       <div style={{ position: 'absolute', top: -100, left: -100, width: 400, height: 400, background: '#10B981', filter: 'blur(150px)', opacity: 0.3, borderRadius: '50%' }} />
@@ -1275,6 +1282,23 @@ const LandingPage = ({ onGetStarted }) => {
         </div>
       </div>
     </div>
+    
+    {/* Floating Bottom Right Scroll Arrow */}
+    <motion.div 
+      style={{ 
+        position: 'fixed', bottom: 40, right: 40, 
+        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, 
+        zIndex: 50, animation: 'bounceDown 2s infinite',
+        opacity: heroOpacity, pointerEvents: 'none'
+      }}
+    >
+      <span style={{ fontFamily: "'Caveat', cursive", fontSize: 24, color: '#A7F3D0', textShadow: '0 0 10px rgba(16,185,129,0.5)' }}>Scroll</span>
+      <svg width="60" height="60" viewBox="0 0 100 100" style={{ filter: 'drop-shadow(0 0 12px #10B981)' }}>
+        <path d="M 30 20 Q 70 20 70 50 L 85 50 L 55 90 L 25 50 L 40 50 Q 40 40 30 40 Z" fill="none" stroke="#10B981" strokeWidth="6" strokeLinejoin="round" />
+        <path d="M 30 20 Q 70 20 70 50 L 85 50 L 55 90 L 25 50 L 40 50 Q 40 40 30 40 Z" fill="#A7F3D0" opacity="0.8" />
+      </svg>
+    </motion.div>
+    </>
   );
 };
 
@@ -1358,6 +1382,7 @@ export default function App() {
         @keyframes tickerUp { from { transform: translateY(0); } to { transform: translateY(-50%); } }
         @keyframes tickerLeft { from { transform: translateX(0); } to { transform: translateX(-33.333%); } }
         @keyframes pulse { 0%, 100% { transform: scale(1); opacity: 0.5; } 50% { transform: scale(1.15); opacity: 1; } }
+        @keyframes bounceDown { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(10px); } }
       `}</style>
 
       <div style={{ minHeight: '100vh', maxWidth: 480, margin: '0 auto', background: '#F9FAFB', position: 'relative', boxShadow: '0 0 50px rgba(0,0,0,0.05)' }}>
