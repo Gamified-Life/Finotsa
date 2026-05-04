@@ -1123,8 +1123,10 @@ const LandingPage = ({ onGetStarted }) => {
     <>
     <div style={{ minHeight: '100vh', background: '#0F3122', color: '#fff', overflowX: 'hidden', position: 'relative', display: 'flex', flexDirection: 'column', perspective: 1500 }}>
       {/* Decorative Glows */}
-      <div style={{ position: 'absolute', top: -100, left: -100, width: 400, height: 400, background: '#10B981', filter: 'blur(150px)', opacity: 0.3, borderRadius: '50%' }} />
-      <div style={{ position: 'absolute', bottom: -150, right: -100, width: 500, height: 500, background: '#1A4731', filter: 'blur(120px)', opacity: 0.5, borderRadius: '50%' }} />
+      <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', pointerEvents: 'none' }}>
+        <div style={{ position: 'absolute', top: -100, left: -100, width: 400, height: 400, background: '#10B981', filter: 'blur(150px)', opacity: 0.3, borderRadius: '50%' }} />
+        <div style={{ position: 'absolute', bottom: -150, right: -100, width: 500, height: 500, background: '#1A4731', filter: 'blur(120px)', opacity: 0.5, borderRadius: '50%' }} />
+      </div>
       
       {/* Navbar */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '24px 32px', zIndex: 10 }}>
@@ -1279,6 +1281,24 @@ const LandingPage = ({ onGetStarted }) => {
           >
             Start for free <ArrowDownRight size={20} />
           </button>
+        </div>
+      </div>
+
+      {/* Footer */}
+      <div style={{ background: '#020617', padding: '30px 5%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 20, zIndex: 20, position: 'relative', marginTop: 'auto' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{ width: 32, height: 32, borderRadius: 8, background: '#1E293B', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Zap size={16} color="#F8FAFC" />
+          </div>
+          <span style={{ fontSize: 16, fontWeight: 700, color: '#F8FAFC' }}>Finotsa</span>
+        </div>
+        <div style={{ display: 'flex', gap: 32 }}>
+          {['About', 'Privacy', 'Terms', 'Contact'].map(link => (
+            <a key={link} href="#" style={{ color: '#94A3B8', textDecoration: 'none', fontSize: 14, fontWeight: 500 }}>{link}</a>
+          ))}
+        </div>
+        <div style={{ color: '#94A3B8', fontSize: 14 }}>
+          © 2026 Finotsa. All rights reserved.
         </div>
       </div>
     </div>
