@@ -476,51 +476,54 @@ app.post('/api/extract', async (req, res) => {
       return res.status(400).json({ error: 'Missing image data' });
     }
 
-    const apiKey = process.env.GEMINI_API_KEY;
+    const apiKey = process.env.GROQ_API_KEY;
     if (!apiKey) {
-      return res.status(500).json({ error: 'GEMINI_API_KEY is not set in environment.' });
+      return res.status(500).json({ error: 'GROQ_API_KEY is not set in environment. Please get one from console.groq.com' });
     }
 
-    const modelsToTry = ['gemini-1.5-flash', 'gemini-1.5-flash-latest', 'gemini-1.5-pro'];
-    let lastError = null;
-    let extractedData = null;
+    console.log('[AI] Attempting Groq Llama-3.2-Vision extraction...');
+    
+    const payload = {
+      model: "llama-3.2-11b-vision-preview",
+      messages: [
+        {
+          role: "user",
+          content: [
+            { type: "text", text: "Extract bank transactions and current balance from this bank statement screenshot. Return JSON with 'balance' (number) and 'transactions' (array of {amount: number, shopName: string}). Return ONLY raw JSON object." },
+            {
+              type: "image_url",
+              image_url: {
+                url: `data:${mimeType};base64,${imageBase64}`
+              }
+            }
+          ]
+        }
+      ],
+      response_format: { type: "json_object" }
+    };
 
-    for (const modelName of modelsToTry) {
-      try {
-        console.log(`[AI] Direct fetch attempt with model: ${modelName}`);
-        const apiRes = await fetch(`https://generativelanguage.googleapis.com/v1/models/${modelName}:generateContent?key=${apiKey}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{
-              parts: [
-                { text: "Extract bank transactions and current balance from this bank statement screenshot. Return JSON with 'balance' (number) and 'transactions' (array of {amount: number, shopName: string}). Return ONLY raw JSON object." },
-                { inline_data: { mime_type: mimeType, data: imageBase64 } }
-              ]
-            }]
-          })
-        });
+    const apiRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: { 
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json' 
+      },
+      body: JSON.stringify(payload)
+    });
 
-        const data = await apiRes.json();
-        if (!apiRes.ok) throw new Error(data.error?.message || `API error ${apiRes.status}`);
-
-        let text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-        text = text.replace(/```json/g, "").replace(/```/g, "").trim();
-        extractedData = JSON.parse(text);
-        if (extractedData) break;
-      } catch (err) {
-        console.error(`[AI] Direct fetch model ${modelName} failed:`, err.message);
-        lastError = err;
-      }
+    const data = await apiRes.json();
+    
+    if (!apiRes.ok) {
+      console.error('[AI] Groq API Error:', data);
+      throw new Error(data.error?.message || 'Groq API returned an error');
     }
 
-    if (extractedData) {
-      res.json({ extracted: extractedData });
-    } else {
-      throw lastError || new Error('All direct fetch attempts failed');
-    }
+    const text = data.choices[0]?.message?.content || '{}';
+    const extractedData = JSON.parse(text);
+
+    res.json({ extracted: extractedData });
   } catch (error) {
-    console.error('[AI] Direct Fetch Error:', error);
+    console.error('[AI] Groq Extraction Error:', error);
     res.status(500).json({ error: 'AI Extraction failed', details: error.message });
   }
 });
