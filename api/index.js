@@ -547,16 +547,16 @@ app.post('/api/upload-statement', async (req, res) => {
     }
     cleanJson = cleanJson.trim();
     
-    let extracted;
+    let extractedResult;
     try {
-      extracted = JSON.parse(cleanJson);
+      extractedResult = JSON.parse(cleanJson);
     } catch (parseErr) {
       console.error('[API] JSON Parse Error:', parseErr, 'Raw Text:', rawText);
       // Try to find first { and last } if it failed
       const jsonMatch = cleanJson.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
         try {
-          extracted = JSON.parse(jsonMatch[0]);
+          extractedResult = JSON.parse(jsonMatch[0]);
         } catch (e2) {
           throw parseErr;
         }
@@ -565,8 +565,8 @@ app.post('/api/upload-statement', async (req, res) => {
       }
     }
 
-    const txs = extracted.transactions || [];
-    const extractedBalance = cleanNumber(extracted.balance);
+    const txs = extractedResult.transactions || [];
+    const extractedBalance = cleanNumber(extractedResult.balance);
 
     console.log(`[API] Extracted Balance: ${extractedBalance}, Transactions: ${txs.length}`);
 
