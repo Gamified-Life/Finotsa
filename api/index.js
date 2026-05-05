@@ -450,6 +450,37 @@ app.post('/api/aa/sync', async (req, res) => {
   res.json({ success: true, transaction });
 });
 
+app.post('/api/extract', async (req, res) => {
+  try {
+    const { imageBase64, mimeType } = req.body;
+    if (!imageBase64 || !mimeType) {
+      return res.status(400).json({ error: 'Missing image data' });
+    }
+
+    const model = ai.getGenerativeModel({ model: 'gemini-1.5-flash' });
+
+    const result = await model.generateContent([
+      "Extract bank transactions and current balance from this bank statement screenshot. Return JSON with 'balance' (number) and 'transactions' (array of {amount: number, shopName: string}). Return ONLY raw JSON object.",
+      { inlineData: { data: imageBase64, mimeType: mimeType } }
+    ]);
+
+    let text = result.response.text().trim();
+    // Clean JSON
+    text = text.replace(/```json/g, "").replace(/```/g, "").trim();
+    
+    try {
+      const parsed = JSON.parse(text);
+      res.json({ extracted: parsed });
+    } catch (parseError) {
+      console.error('[AI] Parse Error:', parseError, 'Raw text:', text);
+      res.status(500).json({ error: 'Failed to parse AI response', raw: text });
+    }
+  } catch (error) {
+    console.error('[AI] Error:', error);
+    res.status(500).json({ error: 'AI Extraction failed', details: error.message });
+  }
+});
+
 app.post('/api/upload-statement', async (req, res) => {
   try {
     await seedCategories();

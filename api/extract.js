@@ -19,7 +19,7 @@ export default async function handler(req) {
     const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
 
     const result = await model.generateContent([
-      "Extract bank transactions and current balance. Return JSON with 'balance' (number) and 'transactions' (array of {amount: number, shopName: string}). Return ONLY raw JSON object.",
+      "Extract bank transactions and current balance from this bank statement screenshot. Return JSON with 'balance' (number) and 'transactions' (array of {amount: number, shopName: string}). Return ONLY raw JSON object.",
       { inlineData: { data: imageBase64, mimeType: mimeType } }
     ]);
 
@@ -27,10 +27,19 @@ export default async function handler(req) {
     // Clean JSON
     text = text.replace(/```json/g, "").replace(/```/g, "").trim();
     
-    return new Response(text, {
-      status: 200,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    try {
+      const parsed = JSON.parse(text);
+      return new Response(JSON.stringify({ extracted: parsed }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    } catch (parseError) {
+      console.error('[EDGE AI] Parse Error:', parseError, 'Raw text:', text);
+      return new Response(JSON.stringify({ error: 'Failed to parse AI response', raw: text }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
   } catch (error) {
     console.error('[EDGE AI] Error:', error);
     return new Response(JSON.stringify({ error: 'AI Edge Extraction failed', details: error.message }), { 
