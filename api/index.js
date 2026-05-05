@@ -24,6 +24,8 @@ app.get('/api/health', (req, res) => {
     version: '2.1-fallback-v3',
     env: {
       hasGeminiKey: !!process.env.GEMINI_API_KEY,
+      hasGroqKey: !!process.env.GROQ_API_KEY,
+      hasMistralKey: !!process.env.MISTRAL_API_KEY,
       hasDatabaseUrl: !!process.env.DATABASE_URL,
       nodeEnv: process.env.NODE_ENV
     },
