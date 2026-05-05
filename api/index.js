@@ -547,13 +547,28 @@ app.post('/api/upload-statement', async (req, res) => {
           const amount = cleanNumber(tx.amount);
           if (amount === null || amount === 0) continue;
           
-          const categoryId = await classifyMerchant(tx.shopName);
+          let categoryId = await classifyMerchant(tx.shopName);
+          
+          // Verify category exists, if not, use a fallback
+          const catExists = await prisma.category.findUnique({ where: { id: categoryId } });
+          if (!catExists) {
+            const firstCat = await prisma.category.findFirst();
+            categoryId = firstCat ? firstCat.id : 1;
+          }
           
           await prisma.transaction.create({
-            data: { userId: user.id, amount, shopName: String(tx.shopName), categoryId }
+            data: { 
+              userId: user.id, 
+              amount, 
+              shopName: String(tx.shopName || 'Unknown'), 
+              categoryId,
+              date: new Date()
+            }
           });
           addedCount++;
-        } catch (err) { console.error(err); }
+        } catch (err) { 
+          console.error('[UPLOAD] Failed to save transaction:', err.message); 
+        }
       }
 
       if (extractedBalance !== null) {
