@@ -478,30 +478,46 @@ app.post('/api/extract', async (req, res) => {
     if (!ai) {
       return res.status(500).json({ error: 'AI client not initialized. Check GEMINI_API_KEY environment variable.' });
     }
-    // Force v1 API to avoid v1beta 404 errors for gemini-1.5-flash
-    const model = ai.getGenerativeModel(
-      { model: 'gemini-1.5-flash' },
-      { apiVersion: 'v1' }
-    );
 
-    const result = await model.generateContent([
-      "Extract bank transactions and current balance from this bank statement screenshot. Return JSON with 'balance' (number) and 'transactions' (array of {amount: number, shopName: string}). Return ONLY raw JSON object.",
-      { inlineData: { data: imageBase64, mimeType: mimeType } }
-    ]);
+    const modelsToTry = ['gemini-1.5-flash', 'gemini-1.5-flash-latest', 'gemini-1.5-pro'];
+    let lastError = null;
+    let extractedData = null;
 
-    let text = result.response.text().trim();
-    // Clean JSON
-    text = text.replace(/```json/g, "").replace(/```/g, "").trim();
-    
-    try {
-      const parsed = JSON.parse(text);
-      res.json({ extracted: parsed });
-    } catch (parseError) {
-      console.error('[AI] Parse Error:', parseError, 'Raw text:', text);
-      res.status(500).json({ error: 'Failed to parse AI response', raw: text });
+    for (const modelName of modelsToTry) {
+      try {
+        console.log(`[AI] Attempting extraction with model: ${modelName}`);
+        const model = ai.getGenerativeModel(
+          { model: modelName },
+          { apiVersion: 'v1' }
+        );
+
+        const result = await model.generateContent([
+          "Extract bank transactions and current balance from this bank statement screenshot. Return JSON with 'balance' (number) and 'transactions' (array of {amount: number, shopName: string}). Return ONLY raw JSON object.",
+          { inlineData: { data: imageBase64, mimeType: mimeType } }
+        ]);
+
+        let text = result.response.text().trim();
+        text = text.replace(/```json/g, "").replace(/```/g, "").trim();
+        extractedData = JSON.parse(text);
+        
+        if (extractedData) {
+          console.log(`[AI] Successfully extracted using ${modelName}`);
+          break; 
+        }
+      } catch (err) {
+        console.error(`[AI] Model ${modelName} failed:`, err.message);
+        lastError = err;
+        continue;
+      }
+    }
+
+    if (extractedData) {
+      res.json({ extracted: extractedData });
+    } else {
+      throw lastError || new Error('All models failed to extract data');
     }
   } catch (error) {
-    console.error('[AI] Error:', error);
+    console.error('[AI] Extraction Error:', error);
     res.status(500).json({ error: 'AI Extraction failed', details: error.message });
   }
 });
