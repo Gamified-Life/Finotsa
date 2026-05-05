@@ -562,6 +562,22 @@ app.post('/api/upload-statement', async (req, res) => {
           
           let categoryId = await classifyMerchant(tx.shopName);
           
+          // Deduplication: Check if this exact transaction was added in the last 10 minutes
+          const tenMinsAgo = new Date(Date.now() - 10 * 60 * 1000);
+          const existing = await prisma.transaction.findFirst({
+            where: {
+              userId: user.id,
+              amount: amount,
+              shopName: String(tx.shopName),
+              date: { gte: tenMinsAgo }
+            }
+          });
+
+          if (existing) {
+            console.log(`[DEDUPE] Skipping duplicate transaction: ${tx.shopName} - ₹${amount}`);
+            continue;
+          }
+          
           // Verify category exists
           const catExists = await prisma.category.findUnique({ where: { id: categoryId } });
           if (!catExists) {
