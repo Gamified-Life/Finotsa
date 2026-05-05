@@ -41,14 +41,34 @@ const getUser = async (req) => {
 };
 
 const classifyMerchant = async (shopName) => {
-  const maps = await prisma.merchantMap.findMany();
-  for (const map of maps) {
-    if (shopName.toUpperCase().includes(map.pattern.toUpperCase())) {
-      return map.categoryId;
+  try {
+    const maps = await prisma.merchantMap.findMany();
+    for (const map of maps) {
+      if (shopName.toUpperCase().includes(map.pattern.toUpperCase())) {
+        return map.categoryId;
+      }
     }
+    // Search by name match
+    const cats = await prisma.category.findMany();
+    const foodTerms = ['SWIGGY', 'ZOMATO', 'RESTAURANT', 'FOOD', 'DINING', 'CAFE', 'EAT', 'BAKERY'];
+    const shopUpper = shopName.toUpperCase();
+    
+    if (foodTerms.some(term => shopUpper.includes(term))) {
+      const food = cats.find(c => c.name === 'Food');
+      if (food) return food.id;
+    }
+
+    const defaultCat = cats.find(c => c.name === 'Shopping') || cats[0];
+    if (!defaultCat) {
+      // Emergency seed if still empty
+      const newCat = await prisma.category.create({ data: { name: 'General', emoji: '📦', type: 'EXPENSE' } });
+      return newCat.id;
+    }
+    return defaultCat.id;
+  } catch (e) {
+    console.error('[CLASSIFY] Error:', e);
+    return 1; // Fallback to ID 1
   }
-  const defaultCat = await prisma.category.findFirst({ where: { name: 'Shopping' } });
-  return defaultCat?.id || 1;
 };
 
 const seedCategories = async () => {
@@ -429,8 +449,10 @@ app.post('/api/aa/sync', async (req, res) => {
 });
 
 app.post('/api/upload-statement', async (req, res) => {
-  const user = await getUser(req);
-  if (!user) return res.status(401).json({ error: 'Unauthorized' });
+  try {
+    await seedCategories();
+    const user = await getUser(req);
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
 
   const { imageBase64, mimeType } = req.body;
   if (!imageBase64 || !mimeType) return res.status(400).json({ error: 'Missing image data' });
