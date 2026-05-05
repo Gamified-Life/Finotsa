@@ -1188,7 +1188,10 @@ const OnboardingScreen = ({ onLinked, onReset, onBack }) => {
         }),
       });
 
-      if (!saveRes.ok) throw new Error('Backend save failed');
+      if (!saveRes.ok) {
+        const errData = await saveRes.json().catch(() => ({}));
+        throw new Error(`Database save failed: ${errData.details || errData.error || saveRes.status}`);
+      }
       
       onLinked();
     } catch (e) {
