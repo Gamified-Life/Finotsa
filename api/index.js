@@ -478,15 +478,15 @@ app.post('/api/extract', async (req, res) => {
       return res.status(400).json({ error: 'Missing image data' });
     }
 
-    const apiKey = process.env.GROQ_API_KEY;
+    const apiKey = process.env.MISTRAL_API_KEY;
     if (!apiKey) {
-      return res.status(500).json({ error: 'GROQ_API_KEY is not set in environment. Please get one from console.groq.com' });
+      return res.status(500).json({ error: 'MISTRAL_API_KEY is not set in environment. Please get one from console.mistral.ai' });
     }
 
-    console.log('[AI] Attempting Groq Llama-3.2-Vision extraction...');
+    console.log('[AI] Attempting Mistral Pixtral extraction...');
     
     const payload = {
-      model: "llama-3.2-11b-vision-preview",
+      model: "pixtral-12b-2409",
       messages: [
         {
           role: "user",
@@ -494,9 +494,7 @@ app.post('/api/extract', async (req, res) => {
             { type: "text", text: "Extract bank transactions and current balance from this bank statement screenshot. Return JSON with 'balance' (number) and 'transactions' (array of {amount: number, shopName: string}). Return ONLY raw JSON object." },
             {
               type: "image_url",
-              image_url: {
-                url: `data:${mimeType};base64,${imageBase64}`
-              }
+              image_url: `data:${mimeType};base64,${imageBase64}`
             }
           ]
         }
@@ -504,7 +502,7 @@ app.post('/api/extract', async (req, res) => {
       response_format: { type: "json_object" }
     };
 
-    const apiRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    const apiRes = await fetch('https://api.mistral.ai/v1/chat/completions', {
       method: 'POST',
       headers: { 
         'Authorization': `Bearer ${apiKey}`,
@@ -516,8 +514,8 @@ app.post('/api/extract', async (req, res) => {
     const data = await apiRes.json();
     
     if (!apiRes.ok) {
-      console.error('[AI] Groq API Error:', data);
-      throw new Error(data.error?.message || 'Groq API returned an error');
+      console.error('[AI] Mistral API Error:', data);
+      throw new Error(data.message || 'Mistral API returned an error');
     }
 
     const text = data.choices[0]?.message?.content || '{}';
@@ -525,7 +523,7 @@ app.post('/api/extract', async (req, res) => {
 
     res.json({ extracted: extractedData });
   } catch (error) {
-    console.error('[AI] Groq Extraction Error:', error);
+    console.error('[AI] Mistral Extraction Error:', error);
     res.status(500).json({ error: 'AI Extraction failed', details: error.message });
   }
 });
