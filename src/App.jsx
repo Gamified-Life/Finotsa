@@ -1117,7 +1117,7 @@ const OnboardingScreen = ({ onLinked, onReset, onBack }) => {
       const results = await Promise.all(allImgs.map(async (file) => {
         try {
           const b64 = await fileToB64(file);
-          const res = await fetch('/api/ai/extract', {
+          const res = await fetch('/api/extract', {
             method: 'POST',
             headers,
             body: JSON.stringify({ imageBase64: b64, mimeType: file.type })

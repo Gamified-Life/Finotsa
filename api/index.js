@@ -13,32 +13,6 @@ app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 
 // ─── SECURE AI TUNNEL ─────────────────────────────────────────────────────────
-app.post('/api/ai/extract', async (req, res) => {
-  try {
-    const { imageBase64, mimeType } = req.body;
-    if (!imageBase64 || !mimeType) return res.status(400).json({ error: 'Missing image' });
-
-    const model = ai.getGenerativeModel({ model: 'gemini-1.5-flash' });
-    const result = await model.generateContent({
-      contents: [{
-        role: 'user',
-        parts: [
-          { inlineData: { data: imageBase64, mimeType: mimeType } },
-          { text: "Extract bank transactions and current balance. Return JSON with 'balance' (number) and 'transactions' (array of {amount: number, shopName: string}). Return ONLY raw JSON object." }
-        ]
-      }]
-    });
-
-    let text = result.response.text().trim();
-    text = text.replace(/```json/g, "").replace(/```/g, "").trim();
-    const extracted = JSON.parse(text);
-    res.json({ success: true, extracted });
-  } catch (error) {
-    console.error('[TUNNEL] Error:', error);
-    res.status(500).json({ error: 'AI Tunnel failed' });
-  }
-});
-
 const cleanNumber = (val) => {
   if (typeof val === 'number') return val;
   if (val === null || val === undefined) return null;
