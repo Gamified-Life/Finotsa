@@ -1158,10 +1158,7 @@ const OnboardingScreen = ({ onLinked, onReset, onBack }) => {
     }
   };
 
-    } finally {
-      setIsVerifying(false);
-    }
-  };
+
 
   if (isVerifying) {
     return (
@@ -1705,6 +1702,25 @@ export default function App() {
   const [userName, setUserName] = useState('');
   const [tab, setTab] = useState('home');
   const [bankLinked, setBankLinked] = useState(null);
+  const [isVerifying, setIsVerifying] = useState(false);
+
+  const handleResetData = async () => {
+    if (!confirm("This will clear all your uploaded transactions. Continue?")) return;
+    setIsVerifying(true);
+    try {
+      const devId = localStorage.getItem('finotsa_dev_id');
+      const { data: { session } } = await supabase.auth.getSession();
+      const headers = { 'x-user-id': session?.user?.id || devId || 'default_user' };
+      await fetch('/api/user/reset', { method: 'POST', headers });
+      alert("Data cleared. You can now start fresh.");
+      if (typeof window !== 'undefined') window.location.reload(); 
+    } catch (e) {
+      console.error(e);
+      alert("Failed to reset data.");
+    } finally {
+      setIsVerifying(false);
+    }
+  };
 
   const checkBankStatus = async (session) => {
     try {
