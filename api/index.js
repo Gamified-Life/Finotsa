@@ -733,6 +733,15 @@ app.post('/api/cron/engine-sweep', async (req, res) => {
   res.json({ success: true, message: `Swept a total of ₹${totalSwept} into portfolios!` });
 });
 
+app.use((err, req, res, next) => {
+  console.error('[GLOBAL ERROR]', err);
+  res.status(500).json({ 
+    error: 'Internal Server Error', 
+    message: err.message,
+    stack: process.env.NODE_ENV === 'development' ? err.stack : undefined 
+  });
+});
+
 export default app;
 
 if (process.env.NODE_ENV !== 'production' && !process.env.VERCEL) {
