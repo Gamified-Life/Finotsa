@@ -72,19 +72,20 @@ const classifyMerchant = async (shopName) => {
 };
 
 const seedCategories = async () => {
-  const count = await prisma.category.count();
-  if (count === 0) {
-    console.log('[SEED] Categories empty, seeding...');
-    const cats = [
-      { name: 'Food', emoji: '🍔', type: 'EXPENSE' },
-      { name: 'Transport', emoji: '🚗', type: 'EXPENSE' },
-      { name: 'Shopping', emoji: '🛍️', type: 'EXPENSE' },
-      { name: 'Entertainment', emoji: '🎬', type: 'EXPENSE' },
-      { name: 'Health', emoji: '🏥', type: 'EXPENSE' },
-      { name: 'Subs', emoji: '💳', type: 'EXPENSE' },
-      { name: 'Income', emoji: '💰', type: 'INCOME' }
-    ];
-    for (const c of cats) {
+  const cats = [
+    { name: 'Food', emoji: '🍔', type: 'EXPENSE' },
+    { name: 'Transport', emoji: '🚗', type: 'EXPENSE' },
+    { name: 'Shopping', emoji: '🛍️', type: 'EXPENSE' },
+    { name: 'Entertainment', emoji: '🎬', type: 'EXPENSE' },
+    { name: 'Health', emoji: '🏥', type: 'EXPENSE' },
+    { name: 'Subs', emoji: '💳', type: 'EXPENSE' },
+    { name: 'Income', emoji: '💰', type: 'INCOME' }
+  ];
+  
+  for (const c of cats) {
+    const existing = await prisma.category.findFirst({ where: { name: c.name } });
+    if (!existing) {
+      console.log(`[SEED] Creating missing category: ${c.name}`);
       await prisma.category.create({ data: c });
     }
   }
