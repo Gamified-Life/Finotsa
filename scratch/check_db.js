@@ -2,18 +2,14 @@ import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
 async function check() {
-  try {
-    const users = await prisma.user.count();
-    const categories = await prisma.category.findMany();
-    const transactions = await prisma.transaction.count();
-    console.log('Users:', users);
-    console.log('Categories:', categories);
-    console.log('Transactions:', transactions);
-  } catch (e) {
-    console.error(e);
-  } finally {
-    await prisma.$disconnect();
-  }
+  const txs = await prisma.transaction.findMany({
+    include: { category: true }
+  });
+  console.log(`Total transactions: ${txs.length}`);
+  txs.forEach(t => {
+    console.log(`${t.id}: ${t.shopName} - ₹${t.amount} (${t.date.toISOString()})`);
+  });
+  await prisma.$disconnect();
 }
 
 check();

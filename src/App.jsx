@@ -83,18 +83,22 @@ const PulseTab = ({ userName, onBack }) => {
   useEffect(() => {
     const fetchPulseData = async () => {
       try {
+        const devId = localStorage.getItem('finotsa_dev_id');
         const { data: { session } } = await supabase.auth.getSession();
-        const headers = session?.user ? { 'x-user-id': session.user.id } : {};
+        const headers = { 'x-user-id': session?.user?.id || devId || 'default_user' };
         const res = await fetch('/api/pulse', { headers });
         const data = await res.json();
         setDetailedCategories(data.detailedCategories);
         setBudget(data.budget);
+        setTransactions(data.transactions || []);
       } catch (err) {
         console.error("Error fetching pulse data:", err);
       }
     };
     fetchPulseData();
   }, []);
+
+  const [transactions, setTransactions] = useState([]);
 
     const textColor = '#111827';
     const subTextColor = '#6B7280';
@@ -192,33 +196,36 @@ const PulseTab = ({ userName, onBack }) => {
           {/* IN column */}
           <div style={{ flex: 1 }}>
             <p style={{ fontSize: 11, color: '#9CA3AF', fontWeight: 600, textAlign: 'center', marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.06em' }}>IN</p>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, animation: 'tickerUp 20s linear infinite' }}>
-              {[...Array(3)].flatMap((_, i) => [
-                <div key={`salary-${i}`} style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: 100, padding: '8px 12px', display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <div style={{ background: '#EEF2FF', width: 24, height: 24, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><Briefcase size={11} color="#4338CA" /></div>
-                  <span style={{ fontSize: 12, fontWeight: 500, color: '#374151', flex: 1 }}>Salary</span>
-                  <span style={{ fontSize: 12, fontWeight: 700, color: GREEN, fontVariantNumeric: 'tabular-nums' }}>₹45k</span>
-                </div>,
-                <div key={`refund-${i}`} style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: 100, padding: '8px 12px', display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <div style={{ background: '#FEF9C3', width: 24, height: 24, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><ArrowDownRight size={11} color="#CA8A04" /></div>
-                  <span style={{ fontSize: 12, fontWeight: 500, color: '#374151', flex: 1 }}>Refund</span>
-                  <span style={{ fontSize: 12, fontWeight: 700, color: GREEN, fontVariantNumeric: 'tabular-nums' }}>₹1,200</span>
-                </div>,
-                <div key={`gap-${i}`} style={{ height: 48 }} />
-              ])}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, animation: transactions.length > 0 ? 'tickerUp 20s linear infinite' : 'none' }}>
+              {transactions.length > 0 ? (
+                [...Array(3)].flatMap((_, i) => 
+                  transactions.filter(t => t.category.type === 'INCOME').map((t, j) => (
+                    <div key={`in-${i}-${j}`} style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: 100, padding: '8px 12px', display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <div style={{ background: '#EEF2FF', width: 24, height: 24, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><ArrowDownRight size={11} color="#4338CA" /></div>
+                      <span style={{ fontSize: 12, fontWeight: 500, color: '#374151', flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{t.shopName}</span>
+                      <span style={{ fontSize: 12, fontWeight: 700, color: GREEN, fontVariantNumeric: 'tabular-nums' }}>₹{t.amount.toLocaleString('en-IN')}</span>
+                    </div>
+                  ))
+                )
+              ) : (
+                <div style={{ textAlign: 'center', fontSize: 10, color: subTextColor, opacity: 0.5 }}>No income yet</div>
+              )}
             </div>
           </div>
 
           {/* OUT column */}
           <div style={{ flex: 1 }}>
             <p style={{ fontSize: 11, color: '#9CA3AF', fontWeight: 600, textAlign: 'center', marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.06em' }}>OUT</p>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, animation: 'tickerUp 25s linear infinite reverse' }}>
-              {[...Array(3)].flatMap((_, i) => [
-                <Chip key={`food-${i}`} emoji="🍔" label="Food" amount="₹340" />,
-                <Chip key={`uber-${i}`} emoji="🚗" label="Uber" amount="₹243" />,
-                <Chip key={`cafe-${i}`} emoji="☕" label="Coffee" amount="₹180" />,
-                <div key={`gap2-${i}`} style={{ height: 24 }} />
-              ])}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, animation: transactions.length > 0 ? 'tickerUp 25s linear infinite reverse' : 'none' }}>
+              {transactions.length > 0 ? (
+                [...Array(3)].flatMap((_, i) => 
+                  transactions.filter(t => t.category.type === 'EXPENSE').slice(0, 5).map((t, j) => (
+                    <Chip key={`out-${i}-${j}`} emoji={t.category.emoji || "💸"} label={t.shopName} amount={`₹${t.amount.toLocaleString('en-IN')}`} />
+                  ))
+                )
+              ) : (
+                <div style={{ textAlign: 'center', fontSize: 10, color: subTextColor, opacity: 0.5 }}>No expenses yet</div>
+              )}
             </div>
           </div>
         </div>
@@ -298,8 +305,9 @@ const CoachTab = ({ userName, onBack }) => {
   useEffect(() => {
     const fetchCoachData = async () => {
       try {
+        const devId = localStorage.getItem('finotsa_dev_id');
         const { data: { session } } = await supabase.auth.getSession();
-        const headers = session?.user ? { 'x-user-id': session.user.id } : {};
+        const headers = { 'x-user-id': session?.user?.id || devId || 'default_user' };
         const res = await fetch('/api/coach', { headers });
         const data = await res.json();
         setCoachData(data);
@@ -470,8 +478,9 @@ const EngineTab = ({ userName, onBack }) => {
 
   const fetchEngineData = async () => {
     try {
+      const devId = localStorage.getItem('finotsa_dev_id');
       const { data: { session } } = await supabase.auth.getSession();
-      const headers = session?.user ? { 'x-user-id': session.user.id } : {};
+      const headers = { 'x-user-id': session?.user?.id || devId || 'default_user' };
       const res = await fetch('/api/engine', { headers });
       const data = await res.json();
       setEngineData(data);
@@ -1049,8 +1058,8 @@ const OnboardingScreen = ({ onLinked, onBack }) => {
             body: JSON.stringify({ imageBase64: base64String, mimeType: file.type })
           });
           const data = await res.json();
-          if (data.success) {
-            if (data.currentBalance) setCurrentBalance(data.currentBalance);
+          if (data.success && (data.count > 0 || data.found > 0 || data.balance !== null)) {
+            setCurrentBalance(data.currentBalance);
             setShowReview(true);
           } else { alert('Failed to process screenshot.'); }
         } catch (err) {
@@ -1081,12 +1090,13 @@ const OnboardingScreen = ({ onLinked, onBack }) => {
       const userId = session?.user?.id || devId || 'default_user';
       const headers = { 'x-user-id': userId };
 
-      // 1. Process all images sequentially
       const allFiles = [balanceImg, ...transactionImgs];
       let totalTxs = 0;
+      let totalFound = 0;
       let balanceFoundTotal = false;
 
-      for (const file of allFiles) {
+      // 1. Process all images in parallel for speed and to avoid serverless timeouts
+      const uploadPromises = allFiles.map(async (file) => {
         const reader = new FileReader();
         const fileData = await new Promise((resolve) => {
           reader.onloadend = () => resolve(reader.result);
@@ -1100,15 +1110,21 @@ const OnboardingScreen = ({ onLinked, onBack }) => {
           headers: { ...headers, 'Content-Type': 'application/json' },
           body: JSON.stringify({ imageBase64: base64String, mimeType: file.type })
         });
-        const data = await res.json();
+        return await res.json();
+      });
+
+      const results = await Promise.all(uploadPromises);
+
+      for (const data of results) {
         if (data.success) {
           totalTxs += data.count || 0;
-          if (data.balanceFound) balanceFoundTotal = true;
+          totalFound += data.found || 0;
+          if (data.balanceFound || data.balance !== null) balanceFoundTotal = true;
         }
       }
 
       // Validation: If AI found absolutely nothing across multiple files, it's likely improper data
-      if (totalTxs === 0 && !balanceFoundTotal) {
+      if (totalTxs === 0 && !balanceFoundTotal && totalFound === 0) {
         alert("We couldn't find any bank transactions or a balance in these screenshots. Please ensure you are uploading clear, valid bank statements.");
         setIsUploading(false);
         return;

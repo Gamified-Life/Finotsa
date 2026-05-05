@@ -2,15 +2,23 @@ import express from 'express';
 import cors from 'cors';
 import { PrismaClient } from '@prisma/client';
 import * as dotenv from 'dotenv';
-import { GoogleGenAI } from '@google/genai';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 dotenv.config();
 
 const app = express();
 const prisma = new PrismaClient({});
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+const ai = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
+
+const cleanNumber = (val) => {
+  if (typeof val === 'number') return val;
+  if (val === null || val === undefined) return null;
+  const cleaned = String(val).replace(/[^\d.-]/g, '');
+  const num = parseFloat(cleaned);
+  return isNaN(num) ? null : num;
+};
 
 const getUser = async (req) => {
   const authId = req.headers['x-user-id'];
@@ -104,7 +112,7 @@ app.get('/api/pulse', async (req, res) => {
     goals: goals.map(g => ({ name: g.name, target: g.targetAmount }))
   };
 
-  res.json({ detailedCategories, budget, currentBalance: user.currentBalance });
+  res.json({ detailedCategories, budget, transactions, currentBalance: user.currentBalance });
 });
 
 app.post('/api/user/settings', async (req, res) => {
@@ -393,14 +401,15 @@ app.post('/api/upload-statement', async (req, res) => {
     let retries = 0;
     while (retries < 3) {
       try {
-        const model = ai.getGenerativeModel({ model: 'gemini-1.5-flash' });
+        const model = ai.getGenerativeModel({ model: 'gemini-2.5-flash' });
         response = await model.generateContent({
-          contents: [
-            {
-              inlineData: { data: imageBase64, mimeType: mimeType }
-            },
-            { text: "Extract all bank transactions and the current bank balance from this screenshot. Return a JSON object with 'balance' (number or null) and 'transactions' (array of objects with 'amount' (number) and 'shopName' (string)). Return ONLY the raw JSON object without any markdown formatting." }
-          ]
+          contents: [{
+            role: 'user',
+            parts: [
+              { inlineData: { data: imageBase64, mimeType: mimeType } },
+              { text: "Extract all bank transactions and the current bank balance from this screenshot. This is likely from a GPay (Google Pay) or similar Indian banking app. Return a JSON object with 'balance' (number or null) and 'transactions' (array of objects with 'amount' (number) and 'shopName' (string)). IMPORTANT: Remove currency symbols (like ₹, Rs.) and commas from amounts. Ensure 'amount' is a valid number. For transactions, look for shop names or person names and the corresponding amounts. For balance, look for a large amount often labeled 'Bank balance' or near a bank name. Return ONLY the raw JSON object." }
+            ]
+          }]
         });
         break;
       } catch (e) {
@@ -415,55 +424,99 @@ app.post('/api/upload-statement', async (req, res) => {
       }
     }
 
-    let rawText = response.text?.trim() || '{}';
+    let rawText = "";
+    try {
+      rawText = response.response.text().trim();
+    } catch (e) {
+      console.error("[API] Error getting response text:", e);
+      rawText = "{}";
+    }
     console.log('[API] Raw Gemini Response:', rawText);
     
-    if (rawText.startsWith('```json')) rawText = rawText.replace(/```json|```/g, '');
+    // Better JSON cleaning: remove markdown blocks if present
+    let cleanJson = rawText;
+    if (cleanJson.includes('```')) {
+      const match = cleanJson.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+      if (match) cleanJson = match[1];
+    }
+    cleanJson = cleanJson.trim();
     
     let extracted;
     try {
-      extracted = JSON.parse(rawText);
+      extracted = JSON.parse(cleanJson);
     } catch (parseErr) {
       console.error('[API] JSON Parse Error:', parseErr, 'Raw Text:', rawText);
-      // Try to find JSON block if it failed
-      const jsonMatch = rawText.match(/\{[\s\S]*\}/);
-      if (jsonMatch) extracted = JSON.parse(jsonMatch[0]);
-      else throw parseErr;
+      // Try to find first { and last } if it failed
+      const jsonMatch = cleanJson.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        try {
+          extracted = JSON.parse(jsonMatch[0]);
+        } catch (e2) {
+          throw parseErr;
+        }
+      } else {
+        throw parseErr;
+      }
     }
 
     const txs = extracted.transactions || [];
-    const extractedBalance = extracted.balance;
+    const extractedBalance = cleanNumber(extracted.balance);
 
-    if (extractedBalance !== undefined && extractedBalance !== null) {
-      await prisma.user.update({
-        where: { id: user.id },
-        data: { currentBalance: parseFloat(extractedBalance) }
-      });
-    }
+    console.log(`[API] Extracted Balance: ${extractedBalance}, Transactions: ${txs.length}`);
 
     let addedCount = 0;
     for (const tx of txs) {
-      const categoryId = await classifyMerchant(tx.shopName);
-      await prisma.transaction.create({
-        data: {
-          userId: user.id,
-          amount: parseFloat(tx.amount),
-          shopName: String(tx.shopName),
-          categoryId
+      try {
+        const amount = cleanNumber(tx.amount);
+        if (amount === null || amount === 0) continue;
+
+        const categoryId = await classifyMerchant(tx.shopName);
+        
+        // Aggressive Deduplication: Check if this exact transaction was added in the last 24 hours
+        const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+        const existing = await prisma.transaction.findFirst({
+          where: {
+            userId: user.id,
+            amount: amount,
+            shopName: String(tx.shopName),
+            date: { gte: oneDayAgo }
+          }
+        });
+
+        if (existing) {
+          console.log(`[API] Skipping duplicate transaction: ${tx.shopName} - ₹${amount}`);
+          continue;
         }
-      });
-      addedCount++;
+
+        await prisma.transaction.create({
+          data: {
+            userId: user.id,
+            amount: amount,
+            shopName: String(tx.shopName),
+            categoryId
+          }
+        });
+        addedCount++;
+      } catch (innerError) {
+        console.error(`[API] Error saving individual transaction:`, innerError);
+      }
     }
 
-    await updateHealthScore(user.id);
-    res.json({ 
-      success: true, 
-      count: addedCount, 
-      balanceFound: extractedBalance !== null, 
-      currentBalance: extractedBalance 
-    });
+    if (extractedBalance !== null) {
+      try {
+        await prisma.user.update({
+          where: { id: user.id },
+          data: { currentBalance: extractedBalance }
+        });
+      } catch (innerError) {
+        console.error(`[API] Error updating user balance:`, innerError);
+      }
+    }
+
+    console.log(`[API] Successfully added ${addedCount} transactions. Found total: ${txs.length}`);
+    res.json({ success: true, count: addedCount, found: txs.length, balance: extractedBalance });
   } catch (error) {
-    console.error('[API] /api/upload-statement: Final Error:', error);
+    console.error(`[API] /api/upload-statement: Final Error:`, error);
     res.status(500).json({ error: error.message || 'Failed to process screenshot' });
   }
 });
@@ -645,3 +698,11 @@ export default app;
 if (process.env.NODE_ENV !== 'production' && !process.env.VERCEL) {
   app.listen(3001, () => console.log('Local dev server running on port 3001'));
 }
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+});
+
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught Exception:', err);
+});
