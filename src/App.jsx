@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { GoogleGenerativeAI } from '@google/generative-ai';
 import { supabase } from './supabaseClient';
 import { motion, useScroll, useTransform } from 'framer-motion';
 import { 
@@ -1110,32 +1109,23 @@ const OnboardingScreen = ({ onLinked, onReset, onBack }) => {
         reader.readAsDataURL(file);
       });
 
-      // ─── CLIENT-SIDE AI EXTRACTION ──────────────────────────────────────────
-      // This bypasses Vercel's 10s serverless timeout entirely
-      const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-      if (!apiKey) throw new Error("VITE_GEMINI_API_KEY missing");
-
-      const genAI = new GoogleGenerativeAI(apiKey);
-      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-
       const allImgs = [statementData.balanceImg, ...statementData.transactionImgs].filter(Boolean);
       let combinedData = { balance: null, transactions: [] };
 
-      // Process images in parallel for maximum speed
+      // ─── SECURE AI TUNNEL ───────────────────────────────────────────────────
+      // Process images via the backend tunnel to avoid Vercel timeouts and hidden keys
       const results = await Promise.all(allImgs.map(async (file) => {
         try {
           const b64 = await fileToB64(file);
-          const prompt = "Extract bank transactions and current balance. Return JSON with 'balance' (number) and 'transactions' (array of {amount: number, shopName: string}). Return ONLY raw JSON.";
-          const result = await model.generateContent([
-            prompt,
-            { inlineData: { data: b64, mimeType: file.type } }
-          ]);
-          let text = result.response.text();
-          // Clean JSON
-          text = text.replace(/```json/g, "").replace(/```/g, "").trim();
-          return JSON.parse(text);
+          const res = await fetch('/api/ai/extract', {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({ imageBase64: b64, mimeType: file.type })
+          });
+          const data = await res.json();
+          return data.extracted || { transactions: [] };
         } catch (innerErr) {
-          console.error("Extraction error for file:", file.name, innerErr);
+          console.error("Tunnel error for file:", file.name, innerErr);
           return { transactions: [] };
         }
       }));
@@ -1146,7 +1136,7 @@ const OnboardingScreen = ({ onLinked, onReset, onBack }) => {
       });
 
       // Now save the structured data to the backend
-      const res = await fetch('/api/upload-statement', {
+      const saveRes = await fetch('/api/upload-statement', {
         method: 'POST',
         headers,
         body: JSON.stringify({ 
@@ -1164,12 +1154,12 @@ const OnboardingScreen = ({ onLinked, onReset, onBack }) => {
         }),
       });
 
-      if (!res.ok) throw new Error('Backend save failed');
+      if (!saveRes.ok) throw new Error('Backend save failed');
       
       onLinked();
     } catch (e) {
       console.error(e);
-      alert("Extraction failed. Please ensure your screenshots are clear and the API key is valid.");
+      alert("Extraction failed. Please ensure your screenshots are clear.");
     } finally {
       setIsUploading(false);
     }
