@@ -51,8 +51,30 @@ const classifyMerchant = async (shopName) => {
   return defaultCat?.id || 1;
 };
 
+const seedCategories = async () => {
+  const count = await prisma.category.count();
+  if (count === 0) {
+    console.log('[SEED] Categories empty, seeding...');
+    const cats = [
+      { name: 'Food', emoji: '🍔', type: 'EXPENSE' },
+      { name: 'Transport', emoji: '🚗', type: 'EXPENSE' },
+      { name: 'Shopping', emoji: '🛍️', type: 'EXPENSE' },
+      { name: 'Entertainment', emoji: '🎬', type: 'EXPENSE' },
+      { name: 'Health', emoji: '🏥', type: 'EXPENSE' },
+      { name: 'Subs', emoji: '💳', type: 'EXPENSE' },
+      { name: 'Income', emoji: '💰', type: 'INCOME' }
+    ];
+    for (const c of cats) {
+      await prisma.category.create({ data: c });
+    }
+  }
+};
+
 app.get('/api/pulse', async (req, res) => {
+  await seedCategories();
   const user = await getUser(req);
+  if (!user) return res.status(401).json({ error: 'Unauthorized' });
+
   const transactions = await prisma.transaction.findMany({
     where: { userId: user.id },
     include: { category: true },
