@@ -1102,9 +1102,34 @@ const OnboardingScreen = ({ onLinked, onReset, onBack }) => {
       };
 
       // Helper to convert File to base64
-      const fileToB64 = (file) => new Promise((resolve, reject) => {
+      const fileToB64 = (file, maxDim = 1200) => new Promise((resolve, reject) => {
         const reader = new FileReader();
-        reader.onload = () => resolve(reader.result.split(',')[1]);
+        reader.onload = (e) => {
+          const img = new Image();
+          img.onload = () => {
+            const canvas = document.createElement('canvas');
+            let width = img.width;
+            let height = img.height;
+            if (width > height) {
+              if (width > maxDim) {
+                height *= maxDim / width;
+                width = maxDim;
+              }
+            } else {
+              if (height > maxDim) {
+                width *= maxDim / height;
+                height = maxDim;
+              }
+            }
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, width, height);
+            const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+            resolve(dataUrl.split(',')[1]);
+          };
+          img.src = e.target.result;
+        };
         reader.onerror = reject;
         reader.readAsDataURL(file);
       });
@@ -1116,8 +1141,8 @@ const OnboardingScreen = ({ onLinked, onReset, onBack }) => {
       // Process images via the backend tunnel to avoid Vercel timeouts and hidden keys
       const results = await Promise.all(allImgs.map(async (file) => {
         try {
-          const b64 = await fileToB64(file);
-          console.log(`[AI] Sending file: ${file.name}, size: ${Math.round(b64.length / 1024)}KB`);
+          const b64 = await fileToB64(file, 1200);
+          console.log(`[AI] Sending resized file: ${file.name}, size: ${Math.round(b64.length / 1024)}KB`);
           
           const res = await fetch('/api/extract', {
             method: 'POST',
