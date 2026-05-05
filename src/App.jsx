@@ -70,7 +70,7 @@ const AnimatedArc = ({ progress, color, strokeWidth = 8, size = 200 }) => {
 };
 
 // ─── PULSE TAB ────────────────────────────────────────────────────────────────
-const PulseTab = ({ userName, onBack }) => {
+const PulseTab = ({ userName, onReset, onBack }) => {
   const [showBreakdown, setShowBreakdown] = useState(false);
   const [expandedCategory, setExpandedCategory] = useState(null);
   const [detailedCategories, setDetailedCategories] = useState([]);
@@ -272,6 +272,14 @@ const PulseTab = ({ userName, onBack }) => {
               )}
             </div>
           ))}
+        </div>
+        <div style={{ marginTop: 40, textAlign: 'center', padding: '0 24px 40px' }}>
+          <button 
+            onClick={onReset}
+            style={{ background: 'none', border: 'none', color: '#9CA3AF', fontSize: 13, cursor: 'pointer', textDecoration: 'underline', fontWeight: 500 }}
+          >
+            Reset Financial OS & Clear All Data
+          </button>
         </div>
       </div>
     </div>
@@ -1798,7 +1806,7 @@ export default function App() {
       `}</style>
 
       <div style={{ minHeight: '100vh', maxWidth: 480, margin: '0 auto', background: '#F9FAFB', position: 'relative', boxShadow: '0 0 50px rgba(0,0,0,0.05)' }}>
-        {tab === 'home' && <PulseTab key="home" userName={userName} onBack={() => {
+        {tab === 'home' && <PulseTab key="home" userName={userName} onReset={handleResetData} onBack={() => {
           supabase.auth.signOut();
           setIsLoggedIn(false);
         }} />}
