@@ -1123,13 +1123,7 @@ const OnboardingScreen = ({ onLinked, onBack }) => {
         }
       }
 
-      // Validation: If AI found absolutely nothing across multiple files, it's likely improper data
-      if (totalTxs === 0 && !balanceFoundTotal && totalFound === 0) {
-        alert("We couldn't find any bank transactions or a balance in these screenshots. Please ensure you are uploading clear, valid bank statements.");
-        setIsUploading(false);
-        return;
-      }
-
+      // Success!
       // 2. Save profile settings
       const settings = { 
         bankLinked: true,
@@ -1146,13 +1140,30 @@ const OnboardingScreen = ({ onLinked, onBack }) => {
         body: JSON.stringify(settings)
       });
 
-      // 3. Finish onboarding
       onLinked();
     } catch (e) {
       console.error(e);
       alert("Extraction failed. Please ensure the screenshots are clear.");
     } finally {
       setIsUploading(false);
+    }
+  };
+
+  const handleResetData = async () => {
+    if (!confirm("This will clear all your uploaded transactions. Continue?")) return;
+    setIsVerifying(true);
+    try {
+      const devId = localStorage.getItem('finotsa_dev_id');
+      const { data: { session } } = await supabase.auth.getSession();
+      const headers = { 'x-user-id': session?.user?.id || devId || 'default_user' };
+      await fetch('/api/user/reset', { method: 'POST', headers });
+      alert("Data cleared. You can now upload fresh screenshots.");
+      setStatementData({ ...statementData, balanceImg: null, transactionImgs: [] });
+    } catch (e) {
+      console.error(e);
+      alert("Failed to reset data.");
+    } finally {
+      setIsVerifying(false);
     }
   };
 
@@ -1394,14 +1405,24 @@ const OnboardingScreen = ({ onLinked, onBack }) => {
               </div>
             </div>
 
-            <button 
-              className="glow-button"
-              onClick={handleFinalize}
-              disabled={isUploading || !statementData.balanceImg || statementData.transactionImgs.length === 0}
-              style={{ padding: 18, borderRadius: 14, background: '#10B981', color: '#0F3122', border: 'none', fontSize: 16, fontWeight: 800, cursor: isUploading ? 'wait' : 'pointer', opacity: isUploading ? 0.7 : 1 }}
-            >
-              {isUploading ? 'AI Extracting Data...' : 'Analyze & Setup OS'}
-            </button>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <button 
+                className="glow-button"
+                onClick={handleFinalize}
+                disabled={isUploading || !statementData.balanceImg || statementData.transactionImgs.length === 0}
+                style={{ width: '100%', padding: 18, borderRadius: 14, background: '#10B981', color: '#0F3122', border: 'none', fontSize: 16, fontWeight: 800, cursor: isUploading ? 'wait' : 'pointer', opacity: isUploading ? 0.7 : 1 }}
+              >
+                {isUploading ? 'AI Extracting Data...' : 'Analyze & Setup OS'}
+              </button>
+              
+              <button 
+                onClick={handleResetData}
+                disabled={isUploading}
+                style={{ background: 'none', border: 'none', color: '#6B7280', fontSize: 12, cursor: 'pointer', textDecoration: 'underline' }}
+              >
+                Clear all previous data and start fresh
+              </button>
+            </div>
           </div>
         )}
 

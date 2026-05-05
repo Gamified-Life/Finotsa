@@ -130,6 +130,23 @@ app.post('/api/user/settings', async (req, res) => {
   res.json({ success: true });
 });
 
+app.post('/api/user/reset', async (req, res) => {
+  try {
+    const user = await getUser(req);
+    if (user) {
+      await prisma.transaction.deleteMany({ where: { userId: user.id } });
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { currentBalance: 0, bankLinked: false }
+      });
+    }
+    res.json({ success: true });
+  } catch (error) {
+    console.error('[API] /api/user/reset Error:', error);
+    res.status(500).json({ error: 'Failed to reset data' });
+  }
+});
+
 app.get('/api/coach', async (req, res) => {
   const user = await getUser(req);
   const transactions = await prisma.transaction.findMany({
