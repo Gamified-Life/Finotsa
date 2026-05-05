@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 import { supabase } from './supabaseClient';
 import { motion, useScroll, useTransform } from 'framer-motion';
 import { 
@@ -1096,63 +1097,79 @@ const OnboardingScreen = ({ onLinked, onReset, onBack }) => {
     try {
       const devId = localStorage.getItem('finotsa_dev_id');
       const { data: { session } } = await supabase.auth.getSession();
-      const userId = session?.user?.id || devId || 'default_user';
-      const headers = { 'x-user-id': userId };
-
-      const allFiles = [balanceImg, ...transactionImgs];
-      let totalTxs = 0;
-      let totalFound = 0;
-      let balanceFoundTotal = false;
-
-      // 1. Process all images in parallel for speed and to avoid serverless timeouts
-      const uploadPromises = allFiles.map(async (file) => {
-        const reader = new FileReader();
-        const fileData = await new Promise((resolve) => {
-          reader.onloadend = () => resolve(reader.result);
-          reader.readAsDataURL(file);
-        });
-
-        const base64String = fileData.split(',')[1];
-        
-        const res = await fetch('/api/upload-statement', {
-          method: 'POST',
-          headers: { ...headers, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ imageBase64: base64String, mimeType: file.type })
-        });
-        return await res.json();
-      });
-
-      const results = await Promise.all(uploadPromises);
-
-      for (const data of results) {
-        if (data.success) {
-          totalTxs += data.count || 0;
-          totalFound += data.found || 0;
-          if (data.balanceFound || data.balance !== null) balanceFoundTotal = true;
-        }
-      }
-
-      // Success!
-      // 2. Save profile settings
-      const settings = { 
-        bankLinked: true,
-        monthlyIncome: statementData.monthlyIncome ? Number(statementData.monthlyIncome) : 50000,
-        fixedExpenses: statementData.fixedExpenses ? Number(statementData.fixedExpenses) : 10000,
-        lifestyleSpend: statementData.lifestyleSpend ? Number(statementData.lifestyleSpend) : 15000,
-        emergencyBuffer: statementData.emergencyGoal ? Number(statementData.emergencyGoal) : 100000,
-        debt: statementData.currentDebt ? Number(statementData.currentDebt) : 0
+      const headers = { 
+        'Content-Type': 'application/json',
+        'x-user-id': session?.user?.id || devId || 'default_user' 
       };
 
-      await fetch('/api/user/settings', {
-        method: 'POST',
-        headers: { ...headers, 'Content-Type': 'application/json' },
-        body: JSON.stringify(settings)
+      // Helper to convert File to base64
+      const fileToB64 = (file) => new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result.split(',')[1]);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
       });
 
+      // ─── CLIENT-SIDE AI EXTRACTION ──────────────────────────────────────────
+      // This bypasses Vercel's 10s serverless timeout entirely
+      const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+      if (!apiKey) throw new Error("VITE_GEMINI_API_KEY missing");
+
+      const genAI = new GoogleGenerativeAI(apiKey);
+      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+
+      const allImgs = [statementData.balanceImg, ...statementData.transactionImgs].filter(Boolean);
+      let combinedData = { balance: null, transactions: [] };
+
+      // Process images in parallel for maximum speed
+      const results = await Promise.all(allImgs.map(async (file) => {
+        try {
+          const b64 = await fileToB64(file);
+          const prompt = "Extract bank transactions and current balance. Return JSON with 'balance' (number) and 'transactions' (array of {amount: number, shopName: string}). Return ONLY raw JSON.";
+          const result = await model.generateContent([
+            prompt,
+            { inlineData: { data: b64, mimeType: file.type } }
+          ]);
+          let text = result.response.text();
+          // Clean JSON
+          text = text.replace(/```json/g, "").replace(/```/g, "").trim();
+          return JSON.parse(text);
+        } catch (innerErr) {
+          console.error("Extraction error for file:", file.name, innerErr);
+          return { transactions: [] };
+        }
+      }));
+
+      results.forEach(res => {
+        if (res.balance) combinedData.balance = res.balance;
+        if (res.transactions) combinedData.transactions.push(...res.transactions);
+      });
+
+      // Now save the structured data to the backend
+      const res = await fetch('/api/upload-statement', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ 
+          isPreProcessed: true,
+          extracted: combinedData,
+          profile: {
+            monthlyIncome: statementData.monthlyIncome,
+            fixedExpenses: statementData.fixedExpenses,
+            lifestyleSpend: statementData.lifestyleSpend,
+            rewardName: statementData.rewardName,
+            rewardValue: statementData.rewardValue,
+            emergencyGoal: statementData.emergencyGoal,
+            currentDebt: statementData.currentDebt
+          }
+        }),
+      });
+
+      if (!res.ok) throw new Error('Backend save failed');
+      
       onLinked();
     } catch (e) {
       console.error(e);
-      alert("Extraction failed. Please ensure the screenshots are clear.");
+      alert("Extraction failed. Please ensure your screenshots are clear and the API key is valid.");
     } finally {
       setIsUploading(false);
     }

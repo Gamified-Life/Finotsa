@@ -450,14 +450,59 @@ app.post('/api/aa/sync', async (req, res) => {
 });
 
 app.post('/api/upload-statement', async (req, res) => {
-  await seedCategories();
-  const user = await getUser(req);
-  if (!user) return res.status(401).json({ error: 'Unauthorized' });
-
-  const { imageBase64, mimeType } = req.body;
-  if (!imageBase64 || !mimeType) return res.status(400).json({ error: 'Missing image data' });
-
   try {
+    await seedCategories();
+    const user = await getUser(req);
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
+
+    const { isPreProcessed, extracted, profile } = req.body;
+
+    if (isPreProcessed && extracted) {
+      console.log('[API] Processing pre-extracted data from client...');
+      const txs = extracted.transactions || [];
+      const extractedBalance = cleanNumber(extracted.balance);
+      let addedCount = 0;
+
+      for (const tx of txs) {
+        try {
+          const amount = cleanNumber(tx.amount);
+          if (amount === null || amount === 0) continue;
+          const categoryId = await classifyMerchant(tx.shopName);
+          
+          await prisma.transaction.create({
+            data: { userId: user.id, amount, shopName: String(tx.shopName), categoryId }
+          });
+          addedCount++;
+        } catch (err) { console.error(err); }
+      }
+
+      if (extractedBalance !== null) {
+        await prisma.user.update({
+          where: { id: user.id },
+          data: { currentBalance: extractedBalance }
+        });
+      }
+
+      // Update profile if provided
+      if (profile) {
+        await prisma.user.update({
+          where: { id: user.id },
+          data: {
+            monthlyIncome: cleanNumber(profile.monthlyIncome) || user.monthlyIncome,
+            fixedExpenses: cleanNumber(profile.fixedExpenses) || user.fixedExpenses,
+            lifestyleSpend: cleanNumber(profile.lifestyleSpend) || user.lifestyleSpend,
+            emergencyBuffer: cleanNumber(profile.emergencyGoal) || user.emergencyBuffer,
+            debt: cleanNumber(profile.currentDebt) || user.debt
+          }
+        });
+      }
+
+      return res.json({ success: true, count: addedCount, balance: extractedBalance });
+    }
+
+    const { imageBase64, mimeType } = req.body;
+    if (!imageBase64 || !mimeType) return res.status(400).json({ error: 'Missing image data' });
+
     let response;
     let retries = 0;
     while (retries < 3) {
