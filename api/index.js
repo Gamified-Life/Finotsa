@@ -17,16 +17,16 @@ try {
 }
 
 app.use(cors());
-app.use(express.json({ limit: '50mb' }));
-
 app.get('/api/health', (req, res) => {
   res.json({ 
     status: 'ok', 
+    version: '2.1-fallback-v3',
     env: {
       hasGeminiKey: !!process.env.GEMINI_API_KEY,
       hasDatabaseUrl: !!process.env.DATABASE_URL,
       nodeEnv: process.env.NODE_ENV
-    }
+    },
+    models: ['gemini-1.5-flash', 'gemini-1.5-flash-latest', 'gemini-1.5-pro', 'gemini-1.5-pro-latest', 'gemini-2.0-flash-exp']
   });
 });
 
@@ -493,8 +493,7 @@ app.post('/api/extract', async (req, res) => {
       try {
         console.log(`[AI] Attempting extraction with model: ${modelName}`);
         const model = ai.getGenerativeModel(
-          { model: modelName },
-          { apiVersion: 'v1' }
+          { model: modelName }
         );
 
         const result = await model.generateContent([
