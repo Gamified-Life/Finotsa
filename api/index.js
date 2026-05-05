@@ -475,54 +475,42 @@ app.post('/api/extract', async (req, res) => {
       return res.status(400).json({ error: 'Missing image data' });
     }
 
-    if (!ai) {
-      return res.status(500).json({ error: 'AI client not initialized. Check GEMINI_API_KEY environment variable.' });
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      return res.status(500).json({ error: 'GEMINI_API_KEY is not set in environment.' });
     }
 
-    const modelsToTry = [
-      'gemini-1.5-flash', 
-      'gemini-1.5-flash-latest', 
-      'gemini-1.5-pro', 
-      'gemini-1.5-pro-latest',
-      'gemini-2.0-flash-exp'
-    ];
-    let lastError = null;
-    let extractedData = null;
+    console.log('[AI] Attempting direct API fetch...');
+    
+    const payload = {
+      contents: [{
+        parts: [
+          { text: "Extract bank transactions and current balance from this bank statement screenshot. Return JSON with 'balance' (number) and 'transactions' (array of {amount: number, shopName: string}). Return ONLY raw JSON object." },
+          { inline_data: { mime_type: mimeType, data: imageBase64 } }
+        ]
+      }]
+    };
 
-    for (const modelName of modelsToTry) {
-      try {
-        console.log(`[AI] Attempting extraction with model: ${modelName}`);
-        const model = ai.getGenerativeModel(
-          { model: modelName }
-        );
+    const apiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
 
-        const result = await model.generateContent([
-          "Extract bank transactions and current balance from this bank statement screenshot. Return JSON with 'balance' (number) and 'transactions' (array of {amount: number, shopName: string}). Return ONLY raw JSON object.",
-          { inlineData: { data: imageBase64, mimeType: mimeType } }
-        ]);
-
-        let text = result.response.text().trim();
-        text = text.replace(/```json/g, "").replace(/```/g, "").trim();
-        extractedData = JSON.parse(text);
-        
-        if (extractedData) {
-          console.log(`[AI] Successfully extracted using ${modelName}`);
-          break; 
-        }
-      } catch (err) {
-        console.error(`[AI] Model ${modelName} failed:`, err.message);
-        lastError = err;
-        continue;
-      }
+    const data = await apiRes.json();
+    
+    if (!apiRes.ok) {
+      console.error('[AI] Direct API Error:', data);
+      throw new Error(data.error?.message || 'Gemini API returned an error');
     }
 
-    if (extractedData) {
-      res.json({ extracted: extractedData });
-    } else {
-      throw lastError || new Error('All models failed to extract data');
-    }
+    let text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    text = text.replace(/```json/g, "").replace(/```/g, "").trim();
+    const extractedData = JSON.parse(text);
+
+    res.json({ extracted: extractedData });
   } catch (error) {
-    console.error('[AI] Extraction Error:', error);
+    console.error('[AI] Direct Fetch Error:', error);
     res.status(500).json({ error: 'AI Extraction failed', details: error.message });
   }
 });
