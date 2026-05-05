@@ -1117,16 +1117,25 @@ const OnboardingScreen = ({ onLinked, onReset, onBack }) => {
       const results = await Promise.all(allImgs.map(async (file) => {
         try {
           const b64 = await fileToB64(file);
+          console.log(`[AI] Sending file: ${file.name}, size: ${Math.round(b64.length / 1024)}KB`);
+          
           const res = await fetch('/api/extract', {
             method: 'POST',
             headers,
             body: JSON.stringify({ imageBase64: b64, mimeType: file.type })
           });
+
+          if (!res.ok) {
+            const errBody = await res.json().catch(() => ({}));
+            console.error(`[AI] Extract failed for ${file.name}:`, res.status, errBody);
+            throw new Error(errBody.details || errBody.error || `Server returned ${res.status}`);
+          }
+
           const data = await res.json();
           return data.extracted || { transactions: [] };
         } catch (innerErr) {
           console.error("Tunnel error for file:", file.name, innerErr);
-          return { transactions: [] };
+          throw innerErr; // Rethrow to stop the process if critical
         }
       }));
 
