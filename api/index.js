@@ -530,17 +530,28 @@ app.post('/api/extract', async (req, res) => {
 
 app.post('/api/upload-statement', async (req, res) => {
   try {
+    console.log('[API] /api/upload-statement hit');
     await seedCategories();
-    const user = await getUser(req);
-    if (!user) return res.status(401).json({ error: 'Unauthorized' });
+    
+    const user = await getUser(req).catch(e => {
+      console.error('[API] getUser failed:', e.message);
+      return null;
+    });
+
+    if (!user) {
+      console.error('[API] No user found/created');
+      return res.status(401).json({ error: 'Unauthorized or User creation failed' });
+    }
 
     const { isPreProcessed, extracted, profile } = req.body;
+    console.log('[API] Payload received:', { isPreProcessed, hasExtracted: !!extracted, hasProfile: !!profile });
 
     if (isPreProcessed && extracted) {
-      console.log('[API] Processing pre-extracted data from client...');
       const txs = extracted.transactions || [];
       const extractedBalance = cleanNumber(extracted.balance);
       let addedCount = 0;
+
+      console.log(`[API] Processing ${txs.length} transactions...`);
 
       for (const tx of txs) {
         try {
@@ -549,7 +560,7 @@ app.post('/api/upload-statement', async (req, res) => {
           
           let categoryId = await classifyMerchant(tx.shopName);
           
-          // Verify category exists, if not, use a fallback
+          // Verify category exists
           const catExists = await prisma.category.findUnique({ where: { id: categoryId } });
           if (!catExists) {
             const firstCat = await prisma.category.findFirst();
@@ -567,7 +578,7 @@ app.post('/api/upload-statement', async (req, res) => {
           });
           addedCount++;
         } catch (err) { 
-          console.error('[UPLOAD] Failed to save transaction:', err.message); 
+          console.error('[UPLOAD] Transaction save failed:', err.message); 
         }
       }
 
@@ -591,13 +602,14 @@ app.post('/api/upload-statement', async (req, res) => {
         });
       }
 
+      console.log(`[API] Upload complete. Saved ${addedCount} txs.`);
       return res.json({ success: true, count: addedCount, balance: extractedBalance });
     }
 
-    res.status(400).json({ error: 'Please use the client-side AI Tunnel for processing.' });
+    res.status(400).json({ error: 'Invalid payload' });
   } catch (error) {
-    console.error(`[API] /api/upload-statement Error:`, error);
-    res.status(500).json({ error: error.message || 'Failed to process' });
+    console.error(`[API] FATAL ERROR:`, error);
+    res.status(500).json({ error: 'Database save failed', details: error.message, stack: error.stack });
   }
 });
 
