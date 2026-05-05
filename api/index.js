@@ -481,35 +481,44 @@ app.post('/api/extract', async (req, res) => {
       return res.status(500).json({ error: 'GEMINI_API_KEY is not set in environment.' });
     }
 
-    console.log('[AI] Attempting direct API fetch...');
-    
-    const payload = {
-      contents: [{
-        parts: [
-          { text: "Extract bank transactions and current balance from this bank statement screenshot. Return JSON with 'balance' (number) and 'transactions' (array of {amount: number, shopName: string}). Return ONLY raw JSON object." },
-          { inline_data: { mime_type: mimeType, data: imageBase64 } }
-        ]
-      }]
-    };
+    const modelsToTry = ['gemini-1.5-flash', 'gemini-1.5-flash-latest', 'gemini-1.5-pro'];
+    let lastError = null;
+    let extractedData = null;
 
-    const apiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
+    for (const modelName of modelsToTry) {
+      try {
+        console.log(`[AI] Direct fetch attempt with model: ${modelName}`);
+        const apiRes = await fetch(`https://generativelanguage.googleapis.com/v1/models/${modelName}:generateContent?key=${apiKey}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{
+              parts: [
+                { text: "Extract bank transactions and current balance from this bank statement screenshot. Return JSON with 'balance' (number) and 'transactions' (array of {amount: number, shopName: string}). Return ONLY raw JSON object." },
+                { inline_data: { mime_type: mimeType, data: imageBase64 } }
+              ]
+            }]
+          })
+        });
 
-    const data = await apiRes.json();
-    
-    if (!apiRes.ok) {
-      console.error('[AI] Direct API Error:', data);
-      throw new Error(data.error?.message || 'Gemini API returned an error');
+        const data = await apiRes.json();
+        if (!apiRes.ok) throw new Error(data.error?.message || `API error ${apiRes.status}`);
+
+        let text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+        text = text.replace(/```json/g, "").replace(/```/g, "").trim();
+        extractedData = JSON.parse(text);
+        if (extractedData) break;
+      } catch (err) {
+        console.error(`[AI] Direct fetch model ${modelName} failed:`, err.message);
+        lastError = err;
+      }
     }
 
-    let text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-    text = text.replace(/```json/g, "").replace(/```/g, "").trim();
-    const extractedData = JSON.parse(text);
-
-    res.json({ extracted: extractedData });
+    if (extractedData) {
+      res.json({ extracted: extractedData });
+    } else {
+      throw lastError || new Error('All direct fetch attempts failed');
+    }
   } catch (error) {
     console.error('[AI] Direct Fetch Error:', error);
     res.status(500).json({ error: 'AI Extraction failed', details: error.message });
