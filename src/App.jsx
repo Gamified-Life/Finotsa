@@ -49,6 +49,7 @@ const AnimatedNumber = ({ value, prefix = '', suffix = '', duration = 1000, styl
 // ─── Animated Arc ─────────────────────────────────────────────────────────────
 const AnimatedArc = ({ progress, color, strokeWidth = 8, size = 200 }) => {
   const [p, setP] = useState(0);
+
   useEffect(() => {
     const start = Date.now();
     const tick = () => {
@@ -964,7 +965,7 @@ const LoginScreen = ({ onLogin, onBack }) => {
 };
 
 // ─── ONBOARDING SCREEN ────────────────────────────────────────────────────────
-const OnboardingScreen = ({ onLinked, onBack }) => {
+const OnboardingScreen = ({ onLinked, onReset, onBack }) => {
   const [step, setStep] = useState('choice'); // 'choice', 'manual', 'upload'
   const [manualData, setManualData] = useState({ bankName: '', accountNum: '', ifsc: '' });
   const [statementData, setStatementData] = useState({ 
@@ -1157,19 +1158,6 @@ const OnboardingScreen = ({ onLinked, onBack }) => {
     }
   };
 
-  const handleResetData = async () => {
-    if (!confirm("This will clear all your uploaded transactions. Continue?")) return;
-    setIsVerifying(true);
-    try {
-      const devId = localStorage.getItem('finotsa_dev_id');
-      const { data: { session } } = await supabase.auth.getSession();
-      const headers = { 'x-user-id': session?.user?.id || devId || 'default_user' };
-      await fetch('/api/user/reset', { method: 'POST', headers });
-      alert("Data cleared. You can now upload fresh screenshots.");
-      setStatementData({ ...statementData, balanceImg: null, transactionImgs: [] });
-    } catch (e) {
-      console.error(e);
-      alert("Failed to reset data.");
     } finally {
       setIsVerifying(false);
     }
@@ -1424,7 +1412,7 @@ const OnboardingScreen = ({ onLinked, onBack }) => {
               </button>
               
               <button 
-                onClick={handleResetData}
+                onClick={onReset}
                 disabled={isUploading}
                 style={{ background: 'none', border: 'none', color: '#6B7280', fontSize: 12, cursor: 'pointer', textDecoration: 'underline' }}
               >
@@ -1782,6 +1770,7 @@ export default function App() {
   if (!bankLinked) {
     return <OnboardingScreen 
       onLinked={() => setBankLinked(true)} 
+      onReset={handleResetData}
       onBack={() => {
         supabase.auth.signOut();
         setIsLoggedIn(false);
