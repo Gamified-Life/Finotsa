@@ -449,10 +449,9 @@ app.post('/api/aa/sync', async (req, res) => {
 });
 
 app.post('/api/upload-statement', async (req, res) => {
-  try {
-    await seedCategories();
-    const user = await getUser(req);
-    if (!user) return res.status(401).json({ error: 'Unauthorized' });
+  await seedCategories();
+  const user = await getUser(req);
+  if (!user) return res.status(401).json({ error: 'Unauthorized' });
 
   const { imageBase64, mimeType } = req.body;
   if (!imageBase64 || !mimeType) return res.status(400).json({ error: 'Missing image data' });
