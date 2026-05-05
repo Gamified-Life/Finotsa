@@ -54,7 +54,9 @@ const getUser = async (req) => {
         name: 'New User',
         monthlyIncome: 45000,
         fixedExpenses: 6200,
+        lifestyleSpend: 0,
         emergencyBuffer: 2000,
+        debt: 0
       },
       include: { goals: true }
     });
@@ -593,11 +595,13 @@ app.post('/api/upload-statement', async (req, res) => {
         await prisma.user.update({
           where: { id: user.id },
           data: {
-            monthlyIncome: cleanNumber(profile.monthlyIncome) || user.monthlyIncome,
-            fixedExpenses: cleanNumber(profile.fixedExpenses) || user.fixedExpenses,
-            lifestyleSpend: cleanNumber(profile.lifestyleSpend) || user.lifestyleSpend,
-            emergencyBuffer: cleanNumber(profile.emergencyGoal) || user.emergencyBuffer,
-            debt: cleanNumber(profile.currentDebt) || user.debt
+            monthlyIncome: cleanNumber(profile.monthlyIncome) ?? user.monthlyIncome,
+            fixedExpenses: cleanNumber(profile.fixedExpenses) ?? user.fixedExpenses,
+            lifestyleSpend: cleanNumber(profile.lifestyleSpend) ?? user.lifestyleSpend,
+            emergencyBuffer: cleanNumber(profile.emergencyGoal) ?? user.emergencyBuffer,
+            debt: cleanNumber(profile.currentDebt) ?? user.debt,
+            rewardName: profile.rewardName || user.rewardName,
+            rewardValue: cleanNumber(profile.rewardValue) ?? user.rewardValue
           }
         });
       }

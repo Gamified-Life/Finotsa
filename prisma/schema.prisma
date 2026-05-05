@@ -15,7 +15,11 @@ model User {
   healthScore     Int           @default(0)
   monthlyIncome   Float         @default(45000)
   fixedExpenses   Float         @default(6200)
+  lifestyleSpend  Float         @default(0)
   emergencyBuffer Float         @default(2000)
+  debt            Float         @default(0)
+  rewardName      String?
+  rewardValue     Float?
   bankLinked      Boolean       @default(false)
   currentBalance  Float         @default(0)
   aaConsentId     String?
