@@ -478,7 +478,11 @@ app.post('/api/extract', async (req, res) => {
     if (!ai) {
       return res.status(500).json({ error: 'AI client not initialized. Check GEMINI_API_KEY environment variable.' });
     }
-    const model = ai.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    // Force v1 API to avoid v1beta 404 errors for gemini-1.5-flash
+    const model = ai.getGenerativeModel(
+      { model: 'gemini-1.5-flash' },
+      { apiVersion: 'v1' }
+    );
 
     const result = await model.generateContent([
       "Extract bank transactions and current balance from this bank statement screenshot. Return JSON with 'balance' (number) and 'transactions' (array of {amount: number, shopName: string}). Return ONLY raw JSON object.",
